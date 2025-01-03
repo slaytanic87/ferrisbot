@@ -149,8 +149,8 @@ impl ChessGame {
             Color::White => Color::Black,
             Color::Black => Color::White,
         };
-        for (row_index, row) in self.fields.iter().enumerate().skip(1) {
-            for (col_index, cell) in row.iter().enumerate().skip(1) {
+        for (row_index, row) in self.fields.iter().enumerate() {
+            for (col_index, cell) in row.iter().enumerate() {
                 if cell.figure.is_none() {
                     continue;
                 }
@@ -220,8 +220,8 @@ impl ChessGame {
 
     pub fn is_in_check(&self) -> Option<Color> {
         let (coord_king, color_opponent) = self.get_opponent_king_data();
-        for (row_index, row) in self.fields.iter().enumerate().skip(1) {
-            for (col_index, cell) in row.iter().enumerate().skip(1) {
+        for (row_index, row) in self.fields.iter().enumerate() {
+            for (col_index, cell) in row.iter().enumerate() {
                 if cell.figure.is_none() {
                     continue;
                 }
