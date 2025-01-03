@@ -69,6 +69,20 @@ impl Coord {
             Coord::H(col) => (7, col as usize),
         }
     }
+
+    pub fn extract_coordinate(row: usize, col: usize) -> Coord {
+        let column: i8 = if col > 7 { 7 as i8 } else { col as i8 };
+        match row {
+            0 => Coord::A(column),
+            1 => Coord::B(column),
+            2 => Coord::C(column),
+            3 => Coord::D(column),
+            4 => Coord::E(column),
+            5 => Coord::F(column),
+            6 => Coord::H(column),
+            7_usize.. => Coord::H(column),
+        }
+    }
 }
 
 impl fmt::Display for Coord {
@@ -84,6 +98,16 @@ impl fmt::Display for Coord {
             Coord::H(_) => 'H',
         };
         write!(formatter, "{}", enum_value)
+    }
+}
+
+impl fmt::Display for Color {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        let enum_value_str = match *self {
+            Color::White => "White",
+            Color::Black => "Black",
+        };
+        write!(formatter, "{}", enum_value_str)
     }
 }
 
@@ -131,4 +155,12 @@ impl ChessMan {
             FigureType::Rook(_) => !DIAGONAL_ONLY_CONSTRAINT.contains(&difference_abs),
         }
     }
+}
+
+#[cfg(test)]
+mod domain_test {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_convert_coordinate() {}
 }

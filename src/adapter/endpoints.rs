@@ -19,7 +19,7 @@ impl From<&str> for Coord {
             "F" => Coord::F(second.parse::<i8>().unwrap()),
             "G" => Coord::G(second.parse::<i8>().unwrap()),
             "H" => Coord::H(second.parse::<i8>().unwrap()),
-            &_ => panic!("Only values from A-H are supported"),
+            &_ => Coord::H(second.parse::<i8>().unwrap()),
         }
     }
 }
@@ -106,16 +106,16 @@ impl ChessController {
             5 => Coord::F(5),
             6 => Coord::G(6),
             7 => Coord::H(7),
-            8_u8.. => Coord::A(0),
+            8_u8.. => Coord::H(7),
         }
     }
 
     pub fn render_current_board(&self) -> String {
         let mut rendered_field = String::from(" |A|B|C|D|E|F|G|H| \n");
         let mut field_type_black: bool = true;
-        for (row_index, row_item) in self.game.fields.iter().enumerate().skip(1) {
+        for (row_index, row_item) in self.game.fields.iter().enumerate() {
             rendered_field.push_str(format!("{}|", row_index).as_ref());
-            for (_, col_item) in row_item.iter().enumerate().skip(1) {
+            for (_, col_item) in row_item.iter().enumerate() {
                 match col_item.figure {
                     Some(figure) => {
                         let figure: Option<&String> = self.figure_map.get(&figure.identity);
@@ -135,20 +135,30 @@ impl ChessController {
                 }
                 field_type_black = !field_type_black;
             }
+            field_type_black = !field_type_black;
             rendered_field.push_str(" \n");
         }
         rendered_field
     }
 
-    pub fn make_move(&self, color: &Color, from: &str, to: &str) -> &str {
+    pub fn make_move(&mut self, color: &Color, from: &str, to: &str) -> String {
         let start: Coord = from.into();
         let target: Coord = to.into();
         let step = Step { start, target };
         let is_allowed = self.game.is_step_allowed(&step, color);
         if !is_allowed {
-            return "Step is not allowed!";
+            return "Step is not allowed!".to_string();
         }
-        "Step done"
+        self.game.make_step(&step);
+        let player_in_check: Option<Color> = self.game.is_in_check();
+        let message = match player_in_check {
+            Some(color) => {
+                self.game.player_in_check = Some(color);
+                format!("Player {} is in check!", color)
+            }
+            None => "Step done".to_string(),
+        };
+        message
     }
 
     pub fn new_game(&mut self) {
@@ -173,15 +183,16 @@ pub async fn chess_command_handler(
             chess_controller.new_game();
             let board: String = chess_controller.render_current_board();
             format!("{} \n {}", board, "New game!".to_owned())
-        },
+        }
         "/help" => {
             let introduction =
                 "This is an asyncron chat based chess game. Type /newgame to restart the game"
                     .to_owned();
-            let instruction = "To make a move: #move #(white or black) #(start coordinate) #(end coordinate) \n
+            let instruction =
+                "To make a move: #move #(white or black) #(start coordinate) #(end coordinate) \n
                           e.g #move #white #A0 #A1";
             format!("{} \n {}", introduction, instruction)
-        },
+        }
         _ => "Unknown command".to_owned(),
     };
 
@@ -201,13 +212,13 @@ pub async fn chess_chat_actions(
     let command: &&str = cmds.first().unwrap();
     match *command {
         "#move" => {
-            let coordinates = extract_coordinates(message.as_str());
+            let coordinates: Vec<&str> = extract_coordinates(message.as_str());
             if coordinates.len() <= 1 {
                 return Ok(Action::ReplyText(
-                    "missing coordinate for START TARGET".into(),
+                    "missing start and target coordinates for a step".into(),
                 ));
             }
-            let chess_controller = state.get().write().await;
+            let mut chess_controller = state.get().write().await;
             let player_color: Option<Color> = extract_color(&message);
             if player_color.is_none() {
                 return Ok(Action::ReplyMarkdown(
@@ -215,10 +226,38 @@ pub async fn chess_chat_actions(
                 ));
             }
             let move_msg: &str =
-                chess_controller.make_move(&player_color.unwrap(), coordinates[0], coordinates[1]);
+                &chess_controller.make_move(&player_color.unwrap(), coordinates[0], coordinates[1]);
             let board: String = chess_controller.render_current_board();
             Ok(Action::ReplyMarkdown(format!("{} \n {}", board, move_msg)))
         }
         _ => Ok(Action::Done),
+    }
+}
+
+#[cfg(test)]
+mod controller_test {
+
+    use super::*;
+
+    #[tokio::test]
+    async fn should_render_game_field_initial_correctly() {
+        //given
+        let controller = ChessController::new();
+        let mut result: String = " |A|B|C|D|E|F|G|H| \n".to_owned();
+        result.push_str("0|♜|♞|♝|♛|♚|♝|♞|♜| \n");
+        result.push_str("1|♟|♟|♟|♟|♟|♟|♟|♟| \n");
+        result.push_str("2|#| |#| |#| |#| | \n");
+        result.push_str("3| |#| |#| |#| |#| \n");
+        result.push_str("4|#| |#| |#| |#| | \n");
+        result.push_str("5| |#| |#| |#| |#| \n");
+        result.push_str("6|♙|♙|♙|♙|♙|♙|♙|♙| \n");
+        result.push_str("7|♖|♘|♗|♕|♔|♗|♘|♖| \n");
+
+        //when
+        let rendered: String = controller.render_current_board();
+
+        //then
+        assert_eq!(rendered.is_empty(), false);
+        assert_eq!(rendered, result);
     }
 }

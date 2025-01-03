@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use super::{domain::Color, Cell, ChessMan, FigureType, Step};
+use super::{domain::Color, Cell, ChessMan, Coord, FigureType, Step};
 
 const FIELD: [[Option<FigureType>; 8]; 8] = [
     [
@@ -75,15 +75,16 @@ const FIELD: [[Option<FigureType>; 8]; 8] = [
 pub struct ChessGame {
     pub fields: Vec<Vec<Cell>>,
     pub current_player: Color,
+    pub player_in_check: Option<Color>,
 }
 
 impl ChessGame {
     pub fn new_game(&mut self) {
         let mut game_field: Vec<Vec<Cell>> = Vec::new();
 
-        for (row_index, row_item) in FIELD.iter().enumerate().skip(1) {
+        for (row_index, row_item) in FIELD.iter().enumerate() {
             let mut col: Vec<Cell> = Vec::new();
-            for (col_index, col_item) in row_item.iter().enumerate().skip(1) {
+            for (col_index, col_item) in row_item.iter().enumerate() {
                 let field_number: i8 = (row_index as i8) * (col_index as i8) - 1;
                 let cell: Cell = match col_item {
                     Some(figure) => Cell {
@@ -104,12 +105,15 @@ impl ChessGame {
         }
         self.fields = game_field;
     }
+
     pub fn new() -> Self {
         Self {
             fields: Vec::new(),
             current_player: Color::White,
+            player_in_check: None,
         }
     }
+
     fn is_way_blocked(&self, step: &Step) -> bool {
         let (row_start, col_start) = step.start.extract_2d_coordinate();
         let (row_target, col_target) = step.target.extract_2d_coordinate();
@@ -140,6 +144,33 @@ impl ChessGame {
         false
     }
 
+    fn get_opponent_king_data(&self) -> (Coord, Color) {
+        let color_opponent: Color = match self.current_player {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        };
+        for (row_index, row) in self.fields.iter().enumerate().skip(1) {
+            for (col_index, cell) in row.iter().enumerate().skip(1) {
+                if cell.figure.is_none() {
+                    continue;
+                }
+                let figure: ChessMan = cell.figure.unwrap();
+                match figure.identity {
+                    FigureType::King(color) => {
+                        if color == color_opponent {
+                            return (
+                                Coord::extract_coordinate(row_index, col_index),
+                                color_opponent,
+                            );
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+        }
+        panic!("King figure could not be found, this case should not be occurred!")
+    }
+
     pub fn is_step_allowed(&self, step: &Step, player: &Color) -> bool {
         if *player != self.current_player {
             return false;
@@ -159,7 +190,7 @@ impl ChessGame {
         match start_cell.figure {
             Some(figure) => {
                 figure.is_step_allowed(start_cell.number, target_cell.number)
-                    && self.is_way_blocked(step)
+                    && self.is_way_blocked(&step)
             }
             None => false,
         }
@@ -187,11 +218,31 @@ impl ChessGame {
         self.fields[row_target][col_target] = start_cell;
     }
 
-    pub fn is_in_check(&self) -> bool {
-        //TODO impl.
-        false
+    pub fn is_in_check(&self) -> Option<Color> {
+        let (coord_king, color_opponent) = self.get_opponent_king_data();
+        for (row_index, row) in self.fields.iter().enumerate().skip(1) {
+            for (col_index, cell) in row.iter().enumerate().skip(1) {
+                if cell.figure.is_none() {
+                    continue;
+                }
+                let pointed_player: ChessMan = cell.figure.unwrap();
+                if pointed_player.identity.unwrap_color() != self.current_player {
+                    continue;
+                }
+                let from: Coord = Coord::extract_coordinate(row_index, col_index);
+                let step = Step {
+                    start: from,
+                    target: coord_king,
+                };
+                if self.is_step_allowed(&step, &pointed_player.identity.unwrap_color()) {
+                    return Some(color_opponent);
+                }
+            }
+        }
+        None
     }
 
+    #[warn(dead_code)]
     pub fn is_check_mate(&self) -> bool {
         //TODO impl.
         false
