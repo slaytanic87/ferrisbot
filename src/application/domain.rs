@@ -54,19 +54,31 @@ pub struct Cell {
 }
 
 impl Coord {
+
+
+    fn check_column(self, col: i8) -> usize {
+       if col < 0 {
+           return 0;
+       }
+       if col > 7 {
+           return 7;
+       }
+       col as usize
+    }
+
     /**
      * return (row, col)
      */
     pub fn extract_2d_coordinate(self) -> (usize, usize) {
         match self {
-            Coord::A(col) => (0, col as usize),
-            Coord::B(col) => (1, col as usize),
-            Coord::C(col) => (2, col as usize),
-            Coord::D(col) => (3, col as usize),
-            Coord::E(col) => (4, col as usize),
-            Coord::F(col) => (5, col as usize),
-            Coord::G(col) => (6, col as usize),
-            Coord::H(col) => (7, col as usize),
+            Coord::A(col) => (0, self.check_column(col)),
+            Coord::B(col) => (1, self.check_column(col)),
+            Coord::C(col) => (2, self.check_column(col)),
+            Coord::D(col) => (3, self.check_column(col)),
+            Coord::E(col) => (4, self.check_column(col)),
+            Coord::F(col) => (5, self.check_column(col)),
+            Coord::G(col) => (6, self.check_column(col)),
+            Coord::H(col) => (7, self.check_column(col)),
         }
     }
 
@@ -162,5 +174,15 @@ mod domain_test {
     use super::*;
 
     #[tokio::test]
-    async fn should_convert_coordinate() {}
+    async fn should_convert_coordinate() {
+        //given
+        let coord_a = Coord::A(0);
+
+        //when
+        let (row, col) = coord_a.extract_2d_coordinate();
+
+        //then
+        assert_eq!(row, 0);
+        assert_eq!(col, 0)
+    }
 }
