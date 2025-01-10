@@ -83,7 +83,7 @@ impl Coord {
     }
 
     pub fn extract_coordinate(row: usize, col: usize) -> Coord {
-        let column: i8 = if col > 7 { 7 as i8 } else { col as i8 };
+        let column: i8 = if col > 7 { 7 } else { col as i8 };
         match row {
             0 => Coord::A(column),
             1 => Coord::B(column),
