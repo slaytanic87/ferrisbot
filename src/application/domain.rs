@@ -173,16 +173,29 @@ impl ChessMan {
 mod domain_test {
     use super::*;
 
-    #[tokio::test]
-    async fn should_convert_coordinate() {
+    #[test]
+    fn should_convert_coordinate() {
         //given
-        let coord_a = Coord::A(0);
+        let coord_a_negative = Coord::A(-1);
+        let coord_a_middle = Coord::A(4);
+        let coord_a_over_end = Coord::A(8);
+
+        let coord_h = Coord::H(6);
 
         //when
-        let (row, col) = coord_a.extract_2d_coordinate();
+        let (row_start, col_start) = coord_a_negative.extract_2d_coordinate();
+        let (_, col_middle) = coord_a_middle.extract_2d_coordinate();
+        let (_, col_end) = coord_a_over_end.extract_2d_coordinate();
+
+        let (row_h_end, col_h_end) = coord_h.extract_2d_coordinate();
 
         //then
-        assert_eq!(row, 0);
-        assert_eq!(col, 0)
+        assert_eq!(row_start, 0);
+        assert_eq!(col_start, 0);
+        assert_eq!(col_middle, 4);
+        assert_eq!(col_end, 7);
+
+        assert_eq!(row_h_end, 7);
+        assert_eq!(col_h_end, 6);
     }
 }

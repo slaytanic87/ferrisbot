@@ -257,7 +257,7 @@ mod controller_test {
         let rendered: String = controller.render_current_board();
 
         //then
-        assert_eq!(rendered.is_empty(), false);
+        assert!(!rendered.is_empty());
         assert_eq!(rendered, result);
     }
 }
