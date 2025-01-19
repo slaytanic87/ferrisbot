@@ -7,3 +7,4 @@ pub use domain::Color;
 pub use domain::Coord;
 pub use domain::FigureType;
 pub use domain::Step;
+pub use domain::Reasons;

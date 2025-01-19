@@ -2,7 +2,7 @@ use crate::application::{ChessGame, Color, Coord, FigureType, Step};
 use anyhow::anyhow;
 use mobot::{Action, BotState, Event, State};
 use regex::{Regex, RegexSet};
-use std::{collections::HashMap, usize};
+use std::collections::HashMap;
 
 impl From<&str> for Coord {
     fn from(value: &str) -> Self {
@@ -115,7 +115,7 @@ impl ChessController {
         let mut field_type_black: bool = true;
         for (row_index, row_item) in self.game.fields.iter().enumerate() {
             rendered_field.push_str(format!("{}|", row_index).as_ref());
-            for (_, col_item) in row_item.iter().enumerate() {
+            for col_item in row_item.iter() {
                 match col_item.figure {
                     Some(figure) => {
                         let figure: Option<&String> = self.figure_map.get(&figure.identity);
@@ -150,15 +150,12 @@ impl ChessController {
             return "Step is not allowed!".to_string();
         }
         self.game.make_step(&step);
-        let player_in_check: Option<Color> = self.game.is_in_check();
-        let message = match player_in_check {
-            Some(color) => {
-                self.game.player_in_check = Some(color);
-                format!("Player {} is in check!", color)
-            }
-            None => "Step done".to_string(),
-        };
-        message
+        let opponent_player_in_check: Option<Color> = self.game.is_in_check(false);
+        if opponent_player_in_check.is_some() {
+            self.game.player_in_check = opponent_player_in_check;
+            return format!("{} is in check!", opponent_player_in_check.unwrap());
+        }
+        "Step done!".to_string()
     }
 
     pub fn new_game(&mut self) {

@@ -35,6 +35,14 @@ pub enum Coord {
     H(i8),
 }
 
+pub enum Reasons {
+    Check,
+    CheckMate,
+    StaleMate,
+    StepViolation,
+    WrongPlayer,
+}
+
 #[derive(Clone)]
 pub struct Step {
     pub start: Coord,
@@ -54,16 +62,14 @@ pub struct Cell {
 }
 
 impl Coord {
-
-
     fn check_column(self, col: i8) -> usize {
-       if col < 0 {
-           return 0;
-       }
-       if col > 7 {
-           return 7;
-       }
-       col as usize
+        if col < 0 {
+            return 0;
+        }
+        if col > 7 {
+            return 7;
+        }
+        col as usize
     }
 
     /**

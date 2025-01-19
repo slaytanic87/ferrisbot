@@ -144,11 +144,7 @@ impl ChessGame {
         false
     }
 
-    fn get_opponent_king_data(&self) -> (Coord, Color) {
-        let color_opponent: Color = match self.current_player {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        };
+    fn get_king_data(&self, king_color: Color) -> (Coord, Color) {
         for (row_index, row) in self.fields.iter().enumerate() {
             for (col_index, cell) in row.iter().enumerate() {
                 if cell.figure.is_none() {
@@ -157,11 +153,8 @@ impl ChessGame {
                 let figure: ChessMan = cell.figure.unwrap();
                 match figure.identity {
                     FigureType::King(color) => {
-                        if color == color_opponent {
-                            return (
-                                Coord::extract_coordinate(row_index, col_index),
-                                color_opponent,
-                            );
+                        if color == king_color {
+                            return (Coord::extract_coordinate(row_index, col_index), king_color);
                         }
                     }
                     _ => continue,
@@ -190,7 +183,7 @@ impl ChessGame {
         match start_cell.figure {
             Some(figure) => {
                 figure.is_step_allowed(start_cell.number, target_cell.number)
-                    && self.is_way_blocked(&step)
+                    && self.is_way_blocked(step)
             }
             None => false,
         }
@@ -218,8 +211,16 @@ impl ChessGame {
         self.fields[row_target][col_target] = start_cell;
     }
 
-    pub fn is_in_check(&self) -> Option<Color> {
-        let (coord_king, color_opponent) = self.get_opponent_king_data();
+    pub fn is_in_check(&self, me_self: bool) -> Option<Color> {
+        let king_color: Color = if !me_self {
+            match self.current_player {
+                Color::White => Color::Black,
+                Color::Black => Color::White,
+            }
+        } else {
+            self.current_player
+        };
+        let (coord_king, _) = self.get_king_data(king_color);
         for (row_index, row) in self.fields.iter().enumerate() {
             for (col_index, cell) in row.iter().enumerate() {
                 if cell.figure.is_none() {
@@ -235,7 +236,7 @@ impl ChessGame {
                     target: coord_king,
                 };
                 if self.is_step_allowed(&step, &pointed_player.identity.unwrap_color()) {
-                    return Some(color_opponent);
+                    return Some(king_color);
                 }
             }
         }
