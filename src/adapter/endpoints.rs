@@ -150,7 +150,7 @@ impl ChessController {
             return "Step is not allowed!".to_string();
         }
         self.game.make_step(&step);
-        let opponent_player_in_check: Option<Color> = self.game.is_in_check(false);
+        let opponent_player_in_check: Option<Color> = self.game.player_in_check(false);
         if opponent_player_in_check.is_some() {
             self.game.player_in_check = opponent_player_in_check;
             return format!("{} is in check!", opponent_player_in_check.unwrap());

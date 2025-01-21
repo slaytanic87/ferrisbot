@@ -41,6 +41,7 @@ pub enum Reasons {
     StaleMate,
     StepViolation,
     WrongPlayer,
+    EmptyField,
 }
 
 #[derive(Clone)]

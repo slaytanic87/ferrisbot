@@ -211,7 +211,7 @@ impl ChessGame {
         self.fields[row_target][col_target] = start_cell;
     }
 
-    pub fn is_in_check(&self, me_self: bool) -> Option<Color> {
+    pub fn player_in_check(&self, me_self: bool) -> Option<Color> {
         let king_color: Color = if !me_self {
             match self.current_player {
                 Color::White => Color::Black,
