@@ -16,6 +16,7 @@ pub enum FigureType {
     King(Color),
 }
 
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum Color {
     White,
@@ -63,7 +64,7 @@ pub struct Cell {
 }
 
 impl Coord {
-    fn check_column(self, col: i8) -> usize {
+    fn normalize_column_interval(self, col: i8) -> usize {
         if col < 0 {
             return 0;
         }
@@ -78,14 +79,14 @@ impl Coord {
      */
     pub fn extract_2d_coordinate(self) -> (usize, usize) {
         match self {
-            Coord::A(col) => (0, self.check_column(col)),
-            Coord::B(col) => (1, self.check_column(col)),
-            Coord::C(col) => (2, self.check_column(col)),
-            Coord::D(col) => (3, self.check_column(col)),
-            Coord::E(col) => (4, self.check_column(col)),
-            Coord::F(col) => (5, self.check_column(col)),
-            Coord::G(col) => (6, self.check_column(col)),
-            Coord::H(col) => (7, self.check_column(col)),
+            Coord::A(col) => (0, self.normalize_column_interval(col)),
+            Coord::B(col) => (1, self.normalize_column_interval(col)),
+            Coord::C(col) => (2, self.normalize_column_interval(col)),
+            Coord::D(col) => (3, self.normalize_column_interval(col)),
+            Coord::E(col) => (4, self.normalize_column_interval(col)),
+            Coord::F(col) => (5, self.normalize_column_interval(col)),
+            Coord::G(col) => (6, self.normalize_column_interval(col)),
+            Coord::H(col) => (7, self.normalize_column_interval(col)),
         }
     }
 
@@ -191,15 +192,19 @@ mod domain_test {
 
         //when
         let (row_start, col_start) = coord_a_negative.extract_2d_coordinate();
-        let (_, col_middle) = coord_a_middle.extract_2d_coordinate();
-        let (_, col_end) = coord_a_over_end.extract_2d_coordinate();
+        let (row_middle, col_middle) = coord_a_middle.extract_2d_coordinate();
+        let (row_end, col_end) = coord_a_over_end.extract_2d_coordinate();
 
         let (row_h_end, col_h_end) = coord_h.extract_2d_coordinate();
 
         //then
         assert_eq!(row_start, 0);
         assert_eq!(col_start, 0);
+
+        assert_eq!(row_middle, 0);
         assert_eq!(col_middle, 4);
+
+        assert_eq!(row_end, 0);
         assert_eq!(col_end, 7);
 
         assert_eq!(row_h_end, 7);

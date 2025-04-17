@@ -180,8 +180,18 @@ impl ChessGame {
             }
         }
 
+        let player_self_in_check = match self.player_in_check {
+            Some(color) => {
+                color == *player
+            },
+            None => true,
+        };
+
         match start_cell.figure {
             Some(figure) => {
+                if player_self_in_check && figure.identity != FigureType::King(*player) {
+                    return false;
+                }
                 figure.is_step_allowed(start_cell.number, target_cell.number)
                     && self.is_way_blocked(step)
             }

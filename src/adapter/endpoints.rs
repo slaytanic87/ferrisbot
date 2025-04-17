@@ -145,7 +145,7 @@ impl ChessController {
         let start: Coord = from.into();
         let target: Coord = to.into();
         let step = Step { start, target };
-        let is_allowed = self.game.is_step_allowed(&step, color);
+        let is_allowed: bool = self.game.is_step_allowed(&step, color);
         if !is_allowed {
             return "Step is not allowed!".to_string();
         }
@@ -154,6 +154,15 @@ impl ChessController {
         if opponent_player_in_check.is_some() {
             self.game.player_in_check = opponent_player_in_check;
             return format!("{} is in check!", opponent_player_in_check.unwrap());
+        }
+        let player_in_check: Option<Color> = self.game.player_in_check(true);
+        if player_in_check.is_some() {
+            let rollback_step = Step {
+                start: target,
+                target: start
+            };
+            self.game.make_step(&rollback_step);
+            return format!("step not possible {} is in check!", player_in_check.unwrap());
         }
         "Step done!".to_string()
     }
