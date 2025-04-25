@@ -1,10 +1,10 @@
 use crate::{application::Color, Moderator};
-use anyhow::{anyhow, Error};
 use mobot::{Action, BotState, Event, State};
 use regex::{Regex, RegexSet};
 
-fn extract_cmds(value: &str) -> Vec<&str> {
-    let separator = Regex::new(r"#[a-z]+");
+
+fn extract_username(value: &str) -> Vec<&str> {
+    let separator = Regex::new(r"@.+");
     match separator {
         Ok(sep) => sep.split(value).collect(),
         Err(_) => Vec::new(),
@@ -57,37 +57,6 @@ impl BotController {
     }
 }
 
-pub async fn chess_command_handler(
-    event: Event,
-    state: State<BotController>,
-) -> Result<Action, anyhow::Error> {
-    let command: &String = event
-        .update
-        .get_message()?
-        .text
-        .as_ref()
-        .ok_or(anyhow!("Not a command"))?;
-    let mut chess_controller = state.get().write().await;
-
-    let response: String = match command.as_str() {
-        "/chessgame" => {
-            format!("{} \n {}", "board", "New game!".to_owned())
-        }
-        "/help" => {
-            let introduction =
-                "This is an asyncron chat based chess game. Type /newgame to restart the game"
-                    .to_owned();
-            let instruction =
-                "To make a move: #move #(white or black) #(start coordinate) #(end coordinate) \n
-                          e.g #move #white #A0 #A1";
-            format!("{} \n {}", introduction, instruction)
-        }
-        _ => "Unknown command".to_owned(),
-    };
-
-    Ok(Action::ReplyText(response))
-}
-
 pub async fn bot_chat_actions(
     event: Event,
     state: State<BotController>,
@@ -97,8 +66,11 @@ pub async fn bot_chat_actions(
     let mut chess_controller = state.get().write().await;
     let reply_rs = chess_controller
         .moderator
-        .chat(user_opt.unwrap(), message)
+        .chat(user_opt.clone().unwrap(), message)
         .await;
+    if chess_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+        return Ok(Action::Done);
+    }
     if let Ok(reply_message) = reply_rs {
         return Ok(Action::ReplyMarkdown(reply_message));
     }
@@ -109,40 +81,30 @@ pub async fn add_admin_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    Ok(Action::Done)
+    let mut chess_controller = state.get().write().await;
+    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let message: Option<String> = event.update.get_message()?.clone().text;
+
+    if let None = message {
+        return Ok(Action::ReplyText("User not found".into()));
+    }
+    if let None = user_opt {
+        return Ok(Action::ReplyText("Admin username not found".into()));
+    }
+    if !chess_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+        return Ok(Action::ReplyText("You don't have permission to add".into()));
+    }
+
+    let message = message.unwrap();
+    let extracted_usernames: Vec<&str> = extract_username(message.as_str());
+    if extracted_usernames.is_empty() {
+        return Ok(Action::ReplyText("Missing usernames".into()));
+    }
+
+    for user in extracted_usernames.iter() {
+        user.to_string().remove(0);
+        chess_controller.moderator.add_administrator(user.to_string());
+    }
+    Ok(Action::ReplyText("Added to admin list".into()))
 }
 
-
-pub async fn chess_chat_actions(
-    event: Event,
-    state: State<BotController>,
-) -> Result<Action, anyhow::Error> {
-    let message: String = event.update.get_message()?.clone().text.unwrap().clone();
-    let cmds: Vec<&str> = extract_cmds(message.as_str());
-    if cmds.is_empty() {
-        return Ok(Action::Done);
-    }
-    let command: &&str = cmds.first().unwrap();
-    match *command {
-        "#move" => {
-            let coordinates: Vec<&str> = extract_coordinates(message.as_str());
-            if coordinates.len() <= 1 {
-                return Ok(Action::ReplyText(
-                    "missing start and target coordinates for a step".into(),
-                ));
-            }
-            let player_color: Option<Color> = extract_color(&message);
-            if player_color.is_none() {
-                return Ok(Action::ReplyMarkdown(
-                    "Unknown or missing player only #white or #black is allowed".to_owned(),
-                ));
-            }
-
-            Ok(Action::ReplyMarkdown(format!(
-                "{} \n {}",
-                "board", "move_msg"
-            )))
-        }
-        _ => Ok(Action::Done),
-    }
-}

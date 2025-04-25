@@ -1,8 +1,6 @@
 mod adapter;
 mod application;
 pub use adapter::bot_chat_actions;
-pub use adapter::chess_chat_actions;
-pub use adapter::chess_command_handler;
 pub use adapter::add_admin_action;
 pub use adapter::BotController;
 pub use application::Moderator;
