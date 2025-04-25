@@ -1,28 +1,7 @@
-use crate::application::{ChessGame, Color, Coord, FigureType, Step};
-use anyhow::anyhow;
+use crate::{application::Color, Moderator};
+use anyhow::{anyhow, Error};
 use mobot::{Action, BotState, Event, State};
 use regex::{Regex, RegexSet};
-use std::collections::HashMap;
-
-impl From<&str> for Coord {
-    fn from(value: &str) -> Self {
-        let mut value_str: String = value.to_string();
-        value_str.remove(0);
-        let (first, second) = value_str.split_at(0);
-
-        match first {
-            "A" => Coord::A(second.parse::<i8>().unwrap()),
-            "B" => Coord::B(second.parse::<i8>().unwrap()),
-            "C" => Coord::C(second.parse::<i8>().unwrap()),
-            "D" => Coord::D(second.parse::<i8>().unwrap()),
-            "E" => Coord::E(second.parse::<i8>().unwrap()),
-            "F" => Coord::F(second.parse::<i8>().unwrap()),
-            "G" => Coord::G(second.parse::<i8>().unwrap()),
-            "H" => Coord::H(second.parse::<i8>().unwrap()),
-            &_ => Coord::H(second.parse::<i8>().unwrap()),
-        }
-    }
-}
 
 fn extract_cmds(value: &str) -> Vec<&str> {
     let separator = Regex::new(r"#[a-z]+");
@@ -61,120 +40,26 @@ fn extract_color(value: &str) -> Option<Color> {
 }
 
 #[derive(Clone, BotState)]
-pub struct ChessController {
-    game: ChessGame,
-    figure_map: HashMap<FigureType, String>,
+pub struct BotController {
+    pub moderator: Moderator,
 }
 
-impl Default for ChessController {
+impl Default for BotController {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ChessController {
+impl BotController {
     pub fn new() -> Self {
-        let mut figure_map: HashMap<FigureType, String> = HashMap::new();
-        figure_map.insert(FigureType::King(Color::Black), "♚".to_string());
-        figure_map.insert(FigureType::Queen(Color::Black), "♛".to_string());
-        figure_map.insert(FigureType::Knight(Color::Black), "♞".to_string());
-        figure_map.insert(FigureType::Bishop(Color::Black), "♝".to_string());
-        figure_map.insert(FigureType::Rook(Color::Black), "♜".to_string());
-        figure_map.insert(FigureType::Pawn(Color::Black), "♟".to_string());
-
-        figure_map.insert(FigureType::King(Color::White), "♔".to_string());
-        figure_map.insert(FigureType::Queen(Color::White), "♕".to_string());
-        figure_map.insert(FigureType::Knight(Color::White), "♘".to_string());
-        figure_map.insert(FigureType::Bishop(Color::White), "♗".to_string());
-        figure_map.insert(FigureType::Rook(Color::White), "♖".to_string());
-        figure_map.insert(FigureType::Pawn(Color::White), "♙".to_string());
-        let mut chess_game = ChessGame::new();
-        chess_game.new_game();
-        Self {
-            game: chess_game,
-            figure_map,
-        }
-    }
-
-    pub fn get_value_by_index(&self, idx: u8) -> Coord {
-        match idx {
-            0 => Coord::A(0),
-            1 => Coord::B(1),
-            2 => Coord::C(2),
-            3 => Coord::D(3),
-            4 => Coord::E(4),
-            5 => Coord::F(5),
-            6 => Coord::G(6),
-            7 => Coord::H(7),
-            8_u8.. => Coord::H(7),
-        }
-    }
-
-    pub fn render_current_board(&self) -> String {
-        let mut rendered_field = String::from(" |A|B|C|D|E|F|G|H| \n");
-        let mut field_type_black: bool = true;
-        for (row_index, row_item) in self.game.fields.iter().enumerate() {
-            rendered_field.push_str(format!("{}|", row_index).as_ref());
-            for col_item in row_item.iter() {
-                match col_item.figure {
-                    Some(figure) => {
-                        let figure: Option<&String> = self.figure_map.get(&figure.identity);
-                        if let Some(figure_str) = figure {
-                            rendered_field.push_str(format!("{}|", figure_str).as_ref());
-                        } else {
-                            rendered_field.push_str("E|");
-                        }
-                    }
-                    None => {
-                        if field_type_black {
-                            rendered_field.push_str("#|");
-                        } else {
-                            rendered_field.push_str(" |");
-                        }
-                    }
-                }
-                field_type_black = !field_type_black;
-            }
-            field_type_black = !field_type_black;
-            rendered_field.push_str(" \n");
-        }
-        rendered_field
-    }
-
-    pub fn make_move(&mut self, color: &Color, from: &str, to: &str) -> String {
-        let start: Coord = from.into();
-        let target: Coord = to.into();
-        let step = Step { start, target };
-        let is_allowed: bool = self.game.is_step_allowed(&step, color);
-        if !is_allowed {
-            return "Step is not allowed!".to_string();
-        }
-        self.game.make_step(&step);
-        let opponent_player_in_check: Option<Color> = self.game.player_in_check(false);
-        if opponent_player_in_check.is_some() {
-            self.game.player_in_check = opponent_player_in_check;
-            return format!("{} is in check!", opponent_player_in_check.unwrap());
-        }
-        let player_in_check: Option<Color> = self.game.player_in_check(true);
-        if player_in_check.is_some() {
-            let rollback_step = Step {
-                start: target,
-                target: start
-            };
-            self.game.make_step(&rollback_step);
-            return format!("step not possible {} is in check!", player_in_check.unwrap());
-        }
-        "Step done!".to_string()
-    }
-
-    pub fn new_game(&mut self) {
-        self.game.new_game()
+        let moderator = Moderator::new();
+        Self { moderator }
     }
 }
 
 pub async fn chess_command_handler(
     event: Event,
-    state: State<ChessController>,
+    state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let command: &String = event
         .update
@@ -185,10 +70,8 @@ pub async fn chess_command_handler(
     let mut chess_controller = state.get().write().await;
 
     let response: String = match command.as_str() {
-        "/start" | "/newgame" => {
-            chess_controller.new_game();
-            let board: String = chess_controller.render_current_board();
-            format!("{} \n {}", board, "New game!".to_owned())
+        "/chessgame" => {
+            format!("{} \n {}", "board", "New game!".to_owned())
         }
         "/help" => {
             let introduction =
@@ -205,12 +88,36 @@ pub async fn chess_command_handler(
     Ok(Action::ReplyText(response))
 }
 
+pub async fn bot_chat_actions(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let message: String = event.update.get_message()?.clone().text.unwrap().clone();
+    let mut chess_controller = state.get().write().await;
+    let reply_rs = chess_controller
+        .moderator
+        .chat(user_opt.unwrap(), message)
+        .await;
+    if let Ok(reply_message) = reply_rs {
+        return Ok(Action::ReplyMarkdown(reply_message));
+    }
+    Ok(Action::Done)
+}
+
+pub async fn add_admin_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    Ok(Action::Done)
+}
+
+
 pub async fn chess_chat_actions(
     event: Event,
-    state: State<ChessController>,
+    state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let message: String = event.update.get_message()?.clone().text.unwrap().clone();
-
     let cmds: Vec<&str> = extract_cmds(message.as_str());
     if cmds.is_empty() {
         return Ok(Action::Done);
@@ -224,46 +131,18 @@ pub async fn chess_chat_actions(
                     "missing start and target coordinates for a step".into(),
                 ));
             }
-            let mut chess_controller = state.get().write().await;
             let player_color: Option<Color> = extract_color(&message);
             if player_color.is_none() {
                 return Ok(Action::ReplyMarkdown(
                     "Unknown or missing player only #white or #black is allowed".to_owned(),
                 ));
             }
-            let move_msg: &str =
-                &chess_controller.make_move(&player_color.unwrap(), coordinates[0], coordinates[1]);
-            let board: String = chess_controller.render_current_board();
-            Ok(Action::ReplyMarkdown(format!("{} \n {}", board, move_msg)))
+
+            Ok(Action::ReplyMarkdown(format!(
+                "{} \n {}",
+                "board", "move_msg"
+            )))
         }
         _ => Ok(Action::Done),
-    }
-}
-
-#[cfg(test)]
-mod controller_test {
-
-    use super::*;
-
-    #[tokio::test]
-    async fn should_render_game_field_initial_correctly() {
-        //given
-        let controller = ChessController::new();
-        let mut result: String = " |A|B|C|D|E|F|G|H| \n".to_owned();
-        result.push_str("0|♜|♞|♝|♛|♚|♝|♞|♜| \n");
-        result.push_str("1|♟|♟|♟|♟|♟|♟|♟|♟| \n");
-        result.push_str("2|#| |#| |#| |#| | \n");
-        result.push_str("3| |#| |#| |#| |#| \n");
-        result.push_str("4|#| |#| |#| |#| | \n");
-        result.push_str("5| |#| |#| |#| |#| \n");
-        result.push_str("6|♙|♙|♙|♙|♙|♙|♙|♙| \n");
-        result.push_str("7|♖|♘|♗|♕|♔|♗|♘|♖| \n");
-
-        //when
-        let rendered: String = controller.render_current_board();
-
-        //then
-        assert!(!rendered.is_empty());
-        assert_eq!(rendered, result);
     }
 }

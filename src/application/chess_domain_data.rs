@@ -16,7 +16,6 @@ pub enum FigureType {
     King(Color),
 }
 
-
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum Color {
     White,
@@ -101,6 +100,40 @@ impl Coord {
             5 => Coord::F(column),
             6 => Coord::H(column),
             7_usize.. => Coord::H(column),
+        }
+    }
+
+    pub fn get_value_by_index(&self, idx: u8) -> Coord {
+        match idx {
+            0 => Coord::A(0),
+            1 => Coord::B(1),
+            2 => Coord::C(2),
+            3 => Coord::D(3),
+            4 => Coord::E(4),
+            5 => Coord::F(5),
+            6 => Coord::G(6),
+            7 => Coord::H(7),
+            8_u8.. => Coord::H(7),
+        }
+    }
+}
+
+impl From<&str> for Coord {
+    fn from(value: &str) -> Self {
+        let mut value_str: String = value.to_string();
+        value_str.remove(0);
+        let (first, second) = value_str.split_at(0);
+
+        match first {
+            "A" => Coord::A(second.parse::<i8>().unwrap()),
+            "B" => Coord::B(second.parse::<i8>().unwrap()),
+            "C" => Coord::C(second.parse::<i8>().unwrap()),
+            "D" => Coord::D(second.parse::<i8>().unwrap()),
+            "E" => Coord::E(second.parse::<i8>().unwrap()),
+            "F" => Coord::F(second.parse::<i8>().unwrap()),
+            "G" => Coord::G(second.parse::<i8>().unwrap()),
+            "H" => Coord::H(second.parse::<i8>().unwrap()),
+            &_ => Coord::H(second.parse::<i8>().unwrap()),
         }
     }
 }

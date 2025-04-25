@@ -1,20 +1,34 @@
-use ferrisgram::ChessController;
-use mobot::{Client, Matcher, Route, Router};
+use ferrisgram::BotController;
+use mobot::{api::BotCommand ,Client, Matcher, Route, Router};
 use std::env;
 
 #[tokio::main]
 async fn main() {
     mobot::init_logger();
-
+    let commands = vec![
+        BotCommand {
+            command: "admin".into(),
+            description: "Add a user to admin list".into(),
+        },
+    ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
-    let controller = ChessController::new();
-    let mut router: mobot::Router<ChessController> = Router::new(client).with_state(controller);
+    let controller = BotController::new();
+    let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
+
+    router.api.set_my_commands(&mobot::api::SetMyCommandsRequest {
+        commands,
+        ..Default::default()
+    }).await.unwrap();
+
     router
         .add_route(
-            Route::ChannelPost(Matcher::Prefix("/".into())),
-            ferrisgram::chess_command_handler,
+            Route::Message(Matcher::BotCommand(String::from("admin"))),
+            |event, state| ferrisgram::add_admin_action(event, state)
         )
-        .add_route(Route::Message(Matcher::Any), ferrisgram::chess_chat_actions);
+        .add_route(
+            Route::ChannelPost(Matcher::Any),
+            |event, state| ferrisgram::bot_chat_actions(event, state)
+        );
 
     router.start().await;
 }

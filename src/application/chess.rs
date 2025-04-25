@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
-use super::{domain::Color, Cell, ChessMan, Coord, FigureType, Step};
+use super::{chess_domain_data::Color, Cell, ChessMan, Coord, FigureType, Step};
 
 const FIELD: [[Option<FigureType>; 8]; 8] = [
     [
@@ -76,6 +77,7 @@ pub struct ChessGame {
     pub fields: Vec<Vec<Cell>>,
     pub current_player: Color,
     pub player_in_check: Option<Color>,
+    pub figure_map: HashMap<FigureType, String>,
 }
 
 impl ChessGame {
@@ -107,10 +109,25 @@ impl ChessGame {
     }
 
     pub fn new() -> Self {
+        let mut figure_map: HashMap<FigureType, String> = HashMap::new();
+        figure_map.insert(FigureType::King(Color::Black), "♚".to_string());
+        figure_map.insert(FigureType::Queen(Color::Black), "♛".to_string());
+        figure_map.insert(FigureType::Knight(Color::Black), "♞".to_string());
+        figure_map.insert(FigureType::Bishop(Color::Black), "♝".to_string());
+        figure_map.insert(FigureType::Rook(Color::Black), "♜".to_string());
+        figure_map.insert(FigureType::Pawn(Color::Black), "♟".to_string());
+
+        figure_map.insert(FigureType::King(Color::White), "♔".to_string());
+        figure_map.insert(FigureType::Queen(Color::White), "♕".to_string());
+        figure_map.insert(FigureType::Knight(Color::White), "♘".to_string());
+        figure_map.insert(FigureType::Bishop(Color::White), "♗".to_string());
+        figure_map.insert(FigureType::Rook(Color::White), "♖".to_string());
+        figure_map.insert(FigureType::Pawn(Color::White), "♙".to_string());
         Self {
             fields: Vec::new(),
             current_player: Color::White,
             player_in_check: None,
+            figure_map,
         }
     }
 
@@ -164,7 +181,7 @@ impl ChessGame {
         panic!("King figure could not be found, this case should not be occurred!")
     }
 
-    pub fn is_step_allowed(&self, step: &Step, player: &Color) -> bool {
+    fn is_step_allowed(&self, step: &Step, player: &Color) -> bool {
         if *player != self.current_player {
             return false;
         }
@@ -181,9 +198,7 @@ impl ChessGame {
         }
 
         let player_self_in_check = match self.player_in_check {
-            Some(color) => {
-                color == *player
-            },
+            Some(color) => color == *player,
             None => true,
         };
 
@@ -199,7 +214,7 @@ impl ChessGame {
         }
     }
 
-    pub fn make_step(&mut self, step: &Step) {
+    fn move_figure(&mut self, step: &Step) {
         self.current_player = match self.current_player {
             Color::Black => Color::White,
             Color::White => Color::Black,
@@ -253,9 +268,98 @@ impl ChessGame {
         None
     }
 
+    pub fn render_current_board(&self) -> String {
+        let mut rendered_field = String::from(" |A|B|C|D|E|F|G|H| \n");
+        let mut field_type_black: bool = true;
+        for (row_index, row_item) in self.fields.iter().enumerate() {
+            rendered_field.push_str(format!("{}|", row_index).as_ref());
+            for col_item in row_item.iter() {
+                match col_item.figure {
+                    Some(figure) => {
+                        let figure: Option<&String> = self.figure_map.get(&figure.identity);
+                        if let Some(figure_str) = figure {
+                            rendered_field.push_str(format!("{}|", figure_str).as_ref());
+                        } else {
+                            rendered_field.push_str("E|");
+                        }
+                    }
+                    None => {
+                        if field_type_black {
+                            rendered_field.push_str("#|");
+                        } else {
+                            rendered_field.push_str(" |");
+                        }
+                    }
+                }
+                field_type_black = !field_type_black;
+            }
+            field_type_black = !field_type_black;
+            rendered_field.push_str(" \n");
+        }
+        rendered_field
+    }
+
+    pub fn make_move(&mut self, color: &Color, from: &str, to: &str) -> String {
+        let start: Coord = from.into();
+        let target: Coord = to.into();
+        let step = Step { start, target };
+        let is_allowed: bool = self.is_step_allowed(&step, color);
+        if !is_allowed {
+            return "Step is not allowed!".to_string();
+        }
+        self.move_figure(&step);
+        let opponent_player_in_check: Option<Color> = self.player_in_check(false);
+        if opponent_player_in_check.is_some() {
+            self.player_in_check = opponent_player_in_check;
+            return format!("{} is in check!", opponent_player_in_check.unwrap());
+        }
+        let player_in_check: Option<Color> = self.player_in_check(true);
+        if player_in_check.is_some() {
+            let rollback_step = Step {
+                start: target,
+                target: start,
+            };
+            self.move_figure(&rollback_step);
+            return format!(
+                "step not possible {} is in check!",
+                player_in_check.unwrap()
+            );
+        }
+        "Step done!".to_string()
+    }
+
     #[warn(dead_code)]
     pub fn is_check_mate(&self) -> bool {
         //TODO impl.
         false
+    }
+}
+
+#[cfg(test)]
+mod chess_game_test {
+
+    use super::*;
+
+    #[tokio::test]
+    async fn should_render_game_field_initial_correctly() {
+        //given
+        let mut chess_game = ChessGame::new();
+        chess_game.new_game();
+        let mut result: String = " |A|B|C|D|E|F|G|H| \n".to_owned();
+        result.push_str("0|♜|♞|♝|♛|♚|♝|♞|♜| \n");
+        result.push_str("1|♟|♟|♟|♟|♟|♟|♟|♟| \n");
+        result.push_str("2|#| |#| |#| |#| | \n");
+        result.push_str("3| |#| |#| |#| |#| \n");
+        result.push_str("4|#| |#| |#| |#| | \n");
+        result.push_str("5| |#| |#| |#| |#| \n");
+        result.push_str("6|♙|♙|♙|♙|♙|♙|♙|♙| \n");
+        result.push_str("7|♖|♘|♗|♕|♔|♗|♘|♖| \n");
+
+        //when
+        let rendered: String = chess_game.render_current_board();
+
+        //then
+        assert!(!rendered.is_empty());
+        assert_eq!(rendered, result);
     }
 }
