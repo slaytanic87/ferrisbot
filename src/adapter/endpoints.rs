@@ -63,12 +63,12 @@ pub async fn bot_chat_actions(
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
     let message: String = event.update.get_message()?.clone().text.unwrap().clone();
-    let mut chess_controller = state.get().write().await;
-    let reply_rs = chess_controller
+    let mut bot_controller = state.get().write().await;
+    let reply_rs = bot_controller
         .moderator
         .chat(user_opt.clone().unwrap(), message)
         .await;
-    if chess_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+    if bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
         return Ok(Action::Done);
     }
     if let Ok(reply_message) = reply_rs {
@@ -81,7 +81,7 @@ pub async fn add_admin_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let mut chess_controller = state.get().write().await;
+    let mut bot_controller = state.get().write().await;
     let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
     let message: Option<String> = event.update.get_message()?.clone().text;
 
@@ -91,7 +91,7 @@ pub async fn add_admin_action(
     if let None = user_opt {
         return Ok(Action::ReplyText("Admin username not found".into()));
     }
-    if !chess_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+    if !bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
         return Ok(Action::ReplyText("You don't have permission to add".into()));
     }
 
@@ -103,7 +103,7 @@ pub async fn add_admin_action(
 
     for user in extracted_usernames.iter() {
         user.to_string().remove(0);
-        chess_controller.moderator.add_administrator(user.to_string());
+        bot_controller.moderator.add_administrator(user.to_string());
     }
     Ok(Action::ReplyText("Added to admin list".into()))
 }
