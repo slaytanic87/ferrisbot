@@ -10,7 +10,7 @@ const PROMP_TEMPLATE: &str = r#"
 [TASK] Observe the discussions in the group and keep it peacefully, otherwise you have to mute and warn the user if he/she is not following the rules three times
 "#;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Moderator {
     pub model_name: String,
     ollama: Ollama,
