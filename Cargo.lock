@@ -1411,9 +1411,8 @@ dependencies = [
 
 [[package]]
 name = "mobot"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4c0b23ecf2d6a6756cb865f5a358afb9abd57aa38442ba1f68deb9643fedb7d"
+version = "0.4.0"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.4.0#af2ba0e2f3b19a72a275c5b1400b27726eee2920"
 dependencies = [
  "anyhow",
  "argh",
@@ -1438,8 +1437,7 @@ dependencies = [
 [[package]]
 name = "mobot-derive"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55b4f380760f3372b7f283f9ee1cf595bd08d16d569b4d5985f91be0e9abab39"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.4.0#af2ba0e2f3b19a72a275c5b1400b27726eee2920"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1522,9 +1520,9 @@ dependencies = [
 
 [[package]]
 name = "ollama-rs"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a4b4750770584c8b4a643d0329e7bedacc4ecf68b7c7ac3e1fec2bafd6312f7"
+checksum = "a0bd0e2c30868e72ffca8143873c6c1e288b2efda9d3950e9ae0d0b4039c49c3"
 dependencies = [
  "async-stream",
  "calc",
@@ -1548,9 +1546,9 @@ dependencies = [
 
 [[package]]
 name = "ollama-rs-macros"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64b21360455ab4af28d7878398f3d44961ce165f20865b10870c9d2a6c7a3fdf"
+checksum = "28b7419b3d0ffe2c71ccd91c389b83cd81c83df5603e2753560d2377df72dcce"
 dependencies = [
  "proc-macro2",
  "quote",

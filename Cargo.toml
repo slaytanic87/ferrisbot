@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.98"
 async-trait = "0.1.88"
-mobot = "0.3.10"
-ollama-rs = { version = "0.3.0", features = ["macros", "tool-implementations",  "stream", "headers"] }
+mobot = { git = "https://github.com/slaytanic87/mobot", tag = "0.4.0" }
+ollama-rs = { version = "0.3.1", features = ["macros", "tool-implementations",  "stream", "headers"] }
 regex = "1.11.1"
 schemars = "0.8.22"
 serde = "1.0.219"
