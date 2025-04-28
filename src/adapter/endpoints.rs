@@ -85,10 +85,10 @@ pub async fn add_admin_action(
     let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
     let message: Option<String> = event.update.get_message()?.clone().text;
 
-    if let None = message {
+    if message.is_none() {
         return Ok(Action::ReplyText("User not found".into()));
     }
-    if let None = user_opt {
+    if user_opt.is_none() {
         return Ok(Action::ReplyText("Admin username not found".into()));
     }
     if !bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
