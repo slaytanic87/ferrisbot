@@ -51,7 +51,7 @@ impl Moderator {
                 &mut self.history,
                 ChatMessageRequest::new(
                     self.model_name.to_owned(),
-                    vec![ChatMessage::user(format!("Username: {} Message: {}", username, message))],
+                    vec![ChatMessage::user(format!("User: {} Message: {}", username, message))],
                 ),
             )
             .await?;

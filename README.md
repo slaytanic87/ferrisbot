@@ -1,6 +1,6 @@
 # What is this?
 
-Ferrisgram is a Rust based bot designed for Telegram messenger.
+Ferrisbot is a Rust based bot designed for Telegram messenger.
 
 ## Setup Telegram token & LLM
 

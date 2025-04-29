@@ -1,6 +1,6 @@
-use crate::{application::Color, Moderator};
+use crate::Moderator;
 use mobot::{Action, BotState, Event, State};
-use regex::{Regex, RegexSet};
+use regex::Regex;
 
 
 fn extract_username(value: &str) -> Vec<&str> {
@@ -8,34 +8,6 @@ fn extract_username(value: &str) -> Vec<&str> {
     match separator {
         Ok(sep) => sep.split(value).collect(),
         Err(_) => Vec::new(),
-    }
-}
-
-fn extract_coordinates(value: &str) -> Vec<&str> {
-    let separator = Regex::new(r"#[A-H]{1}[0-7]{1}");
-    match separator {
-        Ok(sep) => sep.find_iter(value).map(|value| value.as_str()).collect(),
-        Err(_) => Vec::new(),
-    }
-}
-
-fn extract_color(value: &str) -> Option<Color> {
-    let matcher_set = RegexSet::new([r"#white", r"#black"]);
-    let matches: Vec<usize> = match matcher_set {
-        Ok(set) => set
-            .matches(value.to_lowercase().as_str())
-            .into_iter()
-            .collect(),
-        Err(_) => panic!("Regex expression for extracting the color is invalid!"),
-    };
-    if matches.is_empty() {
-        return None;
-    }
-
-    match matches[0] {
-        0 => Some(Color::White),
-        1 => Some(Color::Black),
-        2_usize.. => None,
     }
 }
 
@@ -61,8 +33,8 @@ pub async fn bot_chat_actions(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
-    let message: String = event.update.get_message()?.clone().text.unwrap().clone();
+    let user_opt: Option<String> = event.update.get_post()?.clone().chat.username;
+    let message: String = event.update.get_post()?.clone().text.unwrap().clone();
     let mut bot_controller = state.get().write().await;
     let reply_rs = bot_controller
         .moderator
@@ -82,8 +54,8 @@ pub async fn add_admin_action(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
-    let message: Option<String> = event.update.get_message()?.clone().text;
+    let user_opt: Option<String> = event.update.get_post()?.clone().chat.username;
+    let message: Option<String> = event.update.get_post()?.clone().text;
 
     if message.is_none() {
         return Ok(Action::ReplyText("User not found".into()));
