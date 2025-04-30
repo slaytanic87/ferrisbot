@@ -454,6 +454,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+
+[[package]]
 name = "dtoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -572,6 +578,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "dotenv",
  "mobot",
  "ollama-rs",
  "regex",
@@ -1412,7 +1419,7 @@ dependencies = [
 [[package]]
 name = "mobot"
 version = "0.4.0"
-source = "git+https://github.com/slaytanic87/mobot?tag=0.4.0#af2ba0e2f3b19a72a275c5b1400b27726eee2920"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.5.0#89eb440d433694be830aebc1d35a2f23bfbda26d"
 dependencies = [
  "anyhow",
  "argh",
@@ -1437,7 +1444,7 @@ dependencies = [
 [[package]]
 name = "mobot-derive"
 version = "0.1.3"
-source = "git+https://github.com/slaytanic87/mobot?tag=0.4.0#af2ba0e2f3b19a72a275c5b1400b27726eee2920"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.5.0#89eb440d433694be830aebc1d35a2f23bfbda26d"
 dependencies = [
  "proc-macro2",
  "quote",

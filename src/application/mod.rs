@@ -1,10 +1,2 @@
-mod chess;
-mod chess_domain_data;
 mod moderator;
-pub use chess_domain_data::Cell;
-pub use chess_domain_data::ChessMan;
-pub use chess_domain_data::Color;
-pub use chess_domain_data::Coord;
-pub use chess_domain_data::FigureType;
-pub use chess_domain_data::Step;
 pub use moderator::Moderator;

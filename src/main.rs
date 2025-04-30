@@ -1,9 +1,11 @@
+use dotenv::dotenv;
 use ferrisgram::BotController;
 use mobot::{api::BotCommand ,Client, Matcher, Route, Router};
 use std::env;
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     mobot::init_logger();
     let commands = vec![
         BotCommand {
@@ -23,12 +25,19 @@ async fn main() {
     router
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("admin"))),
-            |event, state| ferrisgram::add_admin_action(event, state)
+            ferrisgram::add_admin_action,
         )
         .add_route(
-            Route::ChannelPost(Matcher::Any),
-            |event, state| ferrisgram::bot_chat_actions(event, state)
-        );
+            Route::Message(Matcher::BotCommand(String::from("mute"))),
+            ferrisgram::mute_user_action,
+        )
+        .add_route(
+            Route::Message(Matcher::BotCommand(String::from("greeting"))),
+            ferrisgram::bot_chat_greeting,
+        )
+        .add_route(Route::Message(Matcher::Any), |event, state| {
+            ferrisgram::bot_chat_actions(event, state)
+        });
 
     router.start().await;
 }

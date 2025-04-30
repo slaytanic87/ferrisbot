@@ -28,9 +28,7 @@ impl Moderator {
                 .unwrap(),
         );
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("llama3.2:latest"));
-        let history = vec![
-            ChatMessage::system(PROMP_TEMPLATE.to_string())
-        ];
+        let history = vec![ChatMessage::system(PROMP_TEMPLATE.to_string())];
 
         Self {
             model_name,
@@ -51,14 +49,16 @@ impl Moderator {
                 &mut self.history,
                 ChatMessageRequest::new(
                     self.model_name.to_owned(),
-                    vec![ChatMessage::user(format!("User: {} Message: {}", username, message))],
+                    vec![ChatMessage::user(format!(
+                        "User: {} Message: {}",
+                        username, message
+                    ))],
                 ),
             )
             .await?;
         Ok(format!(
             "Role: {:?} Message: {}",
-            response.message.role,
-            response.message.content
+            response.message.role, response.message.content
         ))
     }
 
@@ -80,7 +80,10 @@ mod moderator_test {
     async fn should_test_moderator_successfully() {
         let mut moderator = Moderator::new();
         let rs1 = moderator
-            .chat("Fuffi".to_string(), "Hallo Leute, gehts euch gut?".to_string())
+            .chat(
+                "Fuffi".to_string(),
+                "Hallo Leute, gehts euch gut?".to_string(),
+            )
             .await;
 
         let rs2 = moderator
@@ -88,8 +91,11 @@ mod moderator_test {
             .await;
 
         let rs3 = moderator
-        .chat("Fuffi".to_string(), "Steffen du bist selber schwul!".to_string())
-        .await;
+            .chat(
+                "Fuffi".to_string(),
+                "Steffen du bist selber schwul!".to_string(),
+            )
+            .await;
 
         if let Ok(res) = rs1 {
             println!("{}", res);
