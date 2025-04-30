@@ -1,6 +1,5 @@
-use std::time::SystemTime;
-
 use crate::Moderator;
+use log::debug;
 use mobot::{
     api::{ChatPermissions, RestrictChatMemberRequest},
     Action, BotState, Event, State,
@@ -37,7 +36,7 @@ pub async fn bot_chat_greeting(
     event: Event,
     _state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let user_opt: Option<String> = event.update.get_message()?.clone().chat.first_name;
     Ok(Action::ReplyText(format!(
         "Hello {} Im a bot that helps you manage your group. You can mute users and add admins",
         user_opt.unwrap().as_str()
@@ -73,6 +72,7 @@ pub async fn add_admin_action(
 ) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
     let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let is_forum: Option<bool> = event.update.get_message()?.clone().chat.is_forum;
     let message: Option<String> = event.update.get_message()?.clone().text;
 
     if message.is_none() {
@@ -80,6 +80,9 @@ pub async fn add_admin_action(
     }
     if user_opt.is_none() {
         return Ok(Action::ReplyText("Admin username not found".into()));
+    }
+    if is_forum.is_none() || !is_forum.unwrap() {
+        return Ok(Action::ReplyText("Adding user to admin list is not allowed in topics".into()));
     }
     if !bot_controller
         .moderator
@@ -93,6 +96,7 @@ pub async fn add_admin_action(
     if extracted_usernames.is_empty() {
         return Ok(Action::ReplyText("Missing usernames".into()));
     }
+    debug!("usernames: {:?}", extracted_usernames);
 
     for user in extracted_usernames.iter() {
         user.to_string().remove(0);
@@ -119,11 +123,7 @@ pub async fn mute_user_action(
         return Ok(Action::Done);
     }
 
-    let mute_time_60s = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + 60;
+    let mute_time_60s: i64 = event.update.get_message()?.clone().date + 60;
 
     let restrict_chat_req = RestrictChatMemberRequest {
         chat_id: event.update.get_message()?.clone().chat.id.to_string(),
@@ -145,7 +145,7 @@ pub async fn mute_user_action(
             can_manage_topics: None,
         },
         use_independent_chat_permissions: Some(false),
-        until_date: Some(mute_time_60s as i64),
+        until_date: Some(mute_time_60s),
     };
 
     let success_muted = event.api.restrict_chat_member(&restrict_chat_req).await?;
