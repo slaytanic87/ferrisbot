@@ -56,10 +56,7 @@ impl Moderator {
                 ),
             )
             .await?;
-        Ok(format!(
-            "Role: {:?} Message: {}",
-            response.message.role, response.message.content
-        ))
+        Ok(response.message.content)
     }
 
     pub fn add_administrator(&mut self, username: String) {
