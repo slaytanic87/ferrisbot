@@ -1,4 +1,4 @@
-use ferrisgram::BotController;
+use ferrisbot::BotController;
 use mobot::{api::BotCommand, Client, Matcher, Route, Router};
 use std::env;
 
