@@ -1,7 +1,7 @@
 use crate::Moderator;
 use log::debug;
 use mobot::{
-    api::{ChatPermissions, RestrictChatMemberRequest},
+    api::{ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest},
     Action, BotState, Event, State,
 };
 use regex::Regex;
@@ -14,32 +14,43 @@ fn extract_username(value: &str) -> Vec<&str> {
     }
 }
 
-#[derive(Clone, BotState)]
+#[derive(Clone, BotState, Default)]
 pub struct BotController {
     pub moderator: Moderator,
-}
-
-impl Default for BotController {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub name: String,
 }
 
 impl BotController {
-    pub fn new() -> Self {
-        let moderator = Moderator::new();
-        Self { moderator }
+    pub fn new(name: &str) -> Self {
+        let moderator = Moderator::new(name);
+        Self {
+            moderator,
+            name: name.into(),
+        }
     }
 }
 
 pub async fn bot_chat_greeting(
     event: Event,
-    _state: State<BotController>,
+    state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.first_name;
+    let mut bot_controller = state.get().write().await;
+    let chat_id = event.update.get_message()?.clone().chat.id.to_string();
+    let admin_list = event
+        .api
+        .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id))
+        .await?;
+    admin_list.iter().for_each(|admin| {
+        let username_opt: Option<String> = admin.user.username.clone();
+        if let Some(username) = username_opt {
+            if !bot_controller.moderator.is_administrator(username.as_str()) {
+                bot_controller.moderator.add_administrator(username);
+            }
+        }
+    });
     Ok(Action::ReplyText(format!(
-        "Hello {} Im a bot that helps you manage your group. You can mute users and add admins",
-        user_opt.unwrap().as_str()
+        "Hallo zusammen ich bin {}, ich bin als Hilfsmoderator hier um die Gruppe zu unterstützen!",
+        bot_controller.name
     )))
 }
 
@@ -76,19 +87,23 @@ pub async fn add_admin_action(
     let message: Option<String> = event.update.get_message()?.clone().text;
 
     if message.is_none() {
-        return Ok(Action::ReplyText("User not found".into()));
+        return Ok(Action::ReplyText("Message not found".into()));
     }
     if user_opt.is_none() {
-        return Ok(Action::ReplyText("Admin username not found".into()));
+        return Ok(Action::ReplyText("Username not found".into()));
     }
     if is_forum.is_none() || !is_forum.unwrap() {
-        return Ok(Action::ReplyText("Adding user to admin list is not allowed in topics".into()));
+        return Ok(Action::ReplyText(
+            "Adding user to admin list is not allowed in topics".into(),
+        ));
     }
     if !bot_controller
         .moderator
         .is_administrator(user_opt.unwrap().as_str())
     {
-        return Ok(Action::ReplyText("You don't have permission to add".into()));
+        return Ok(Action::ReplyText(
+            "You don't have permission to nominate users".into(),
+        ));
     }
 
     let message = message.unwrap();
@@ -110,10 +125,31 @@ pub async fn mute_user_action(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
-    let user = event.update.get_message()?.clone().from;
-    if user.is_none() {
+
+    let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
+
+    if reply_to_message_opt.is_none() {
         return Ok(Action::Done);
     }
+
+    let user_id_be_muted: i64 = reply_to_message_opt
+        .as_ref()
+        .unwrap()
+        .get("from")
+        .unwrap()
+        .get("id")
+        .unwrap()
+        .as_i64()
+        .unwrap();
+    let username_be_muted: String = reply_to_message_opt
+        .unwrap()
+        .get("from")
+        .unwrap()
+        .get("username")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_string();
 
     let bot_controller = state.get().write().await;
     if !bot_controller
@@ -127,7 +163,7 @@ pub async fn mute_user_action(
 
     let restrict_chat_req = RestrictChatMemberRequest {
         chat_id: event.update.get_message()?.clone().chat.id.to_string(),
-        user_id: user.clone().unwrap().id,
+        user_id: user_id_be_muted,
         permissions: ChatPermissions {
             can_send_messages: Some(false),
             can_send_audios: Some(false),
@@ -156,6 +192,77 @@ pub async fn mute_user_action(
 
     Ok(Action::ReplyText(format!(
         "@{} You are muted now!",
-        user.unwrap().username.unwrap()
+        username_be_muted
+    )))
+}
+
+pub async fn unmute_user_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+
+    let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
+
+    if reply_to_message_opt.is_none() {
+        return Ok(Action::Done);
+    }
+
+    let user_id_be_unmuted: i64 = reply_to_message_opt
+        .as_ref()
+        .unwrap()
+        .get("from")
+        .unwrap()
+        .get("id")
+        .unwrap()
+        .as_i64()
+        .unwrap();
+    let username_be_unmuted: String = reply_to_message_opt
+        .unwrap()
+        .get("from")
+        .unwrap()
+        .get("username")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let bot_controller = state.get().write().await;
+    if !bot_controller
+        .moderator
+        .is_administrator(user_opt.unwrap().as_str())
+    {
+        return Ok(Action::Done);
+    }
+
+    let restrict_chat_req = RestrictChatMemberRequest {
+        chat_id: event.update.get_message()?.clone().chat.id.to_string(),
+        user_id: user_id_be_unmuted,
+        permissions: ChatPermissions {
+            can_send_messages: Some(true),
+            can_send_audios: Some(true),
+            can_send_documents: Some(true),
+            can_send_photos: Some(true),
+            can_send_videos: Some(true),
+            can_send_video_notes: None,
+            can_send_voice_notes: None,
+            can_send_polls: None,
+            can_send_other_messages: None,
+            can_add_web_page_previews: None,
+            can_change_info: None,
+            can_invite_users: None,
+            can_pin_messages: None,
+            can_manage_topics: None,
+        },
+        use_independent_chat_permissions: Some(false),
+        until_date: None,
+    };
+    let success_unmuted = event.api.restrict_chat_member(&restrict_chat_req).await?;
+    if !success_unmuted {
+        return Ok(Action::ReplyText("Failed to unmute user".into()));
+    }
+    Ok(Action::ReplyText(format!(
+        "@{} You are unmuted now!",
+        username_be_unmuted
     )))
 }

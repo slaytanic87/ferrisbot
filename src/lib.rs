@@ -4,5 +4,6 @@ pub use adapter::add_admin_action;
 pub use adapter::bot_chat_actions;
 pub use adapter::bot_chat_greeting;
 pub use adapter::mute_user_action;
+pub use adapter::unmute_user_action;
 pub use adapter::BotController;
 pub use application::Moderator;

@@ -1,25 +1,59 @@
+use log::debug;
 use ollama_rs::{
     generation::chat::{request::ChatMessageRequest, ChatMessage},
     Ollama,
 };
-use std::{env, error::Error, vec};
+use std::{collections::VecDeque, env, error::Error, vec};
 
-const PROMP_TEMPLATE: &str = r#"
-[ROLE] Your name is Kate and you are the moderator of a german speaking chat group.
-[CONTEXT] As a moderator your goal is preventing users using vulgar expression, hot discussions or insult each other.
-[TASK] Observe the discussions in the group and keep it peacefully, otherwise you have to mute and warn the user if he/she is not following the rules three times
-"#;
+const MAX_HISTORY_BUFFER_SIZE: usize = 15;
+
+#[derive(Clone, Default)]
+pub struct HistoryBuffer {
+    history_queue: VecDeque<ChatMessage>,
+    initial_prompt_messages: Vec<ChatMessage>,
+}
+
+impl HistoryBuffer {
+    pub fn new(messages: Vec<ChatMessage>) -> Self {
+        Self {
+            history_queue: VecDeque::new(),
+            initial_prompt_messages: messages,
+        }
+    }
+
+    pub fn set_message_adjust_buffer(&mut self, messages: Vec<ChatMessage>) {
+        self.history_queue = VecDeque::from(messages);
+
+        let mut initial_promt_counter = self.initial_prompt_messages.len();
+        while initial_promt_counter > 0 {
+            self.history_queue.pop_front();
+            initial_promt_counter -= 1;
+        }
+
+        if self.history_queue.len() > MAX_HISTORY_BUFFER_SIZE {
+            self.history_queue.pop_front();
+        }
+    }
+
+    pub fn get_history(&self) -> Vec<ChatMessage> {
+        [
+            self.initial_prompt_messages.clone(),
+            Vec::from(self.history_queue.clone()),
+        ]
+        .concat()
+    }
+}
 
 #[derive(Clone, Default)]
 pub struct Moderator {
-    pub model_name: String,
+    model_name: String,
     ollama: Ollama,
-    history: Vec<ChatMessage>,
+    history_buffer: HistoryBuffer,
     administrators: Vec<String>,
 }
 
 impl Moderator {
-    pub fn new() -> Self {
+    pub fn new(name: &str) -> Self {
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
             env::var("OLLAMA_PORT")
@@ -28,12 +62,19 @@ impl Moderator {
                 .unwrap(),
         );
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("llama3.2:latest"));
-        let history = vec![ChatMessage::system(PROMP_TEMPLATE.to_string())];
+
+        let messages = vec![ChatMessage::system(format!(
+            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator to prevent members using vulgar expression, hot discussions or insult each other.
+Remember that your task is just observe the discussions in the group and keep it peacefully, otherwise you have to advise the members in the chat group directly to follow the rules if they are not following the rules repeatedly. The preferred language in the chat group is German.
+You just need to repond with the chat group member if you see a user using vulgar expression or insulting each other. Otherwise just answer with: [NO ACTION]",
+            name
+        ))];
+        let history_buffer = HistoryBuffer::new(messages);
 
         Self {
             model_name,
             ollama: ollama_client,
-            history,
+            history_buffer,
             administrators: Vec::new(),
         }
     }
@@ -43,19 +84,18 @@ impl Moderator {
         username: String,
         message: String,
     ) -> Result<String, Box<dyn Error>> {
+        let user_message = ChatMessage::user(format!("User: {}, Message: {}", username, message));
+        let mut history = self.history_buffer.get_history();
+        debug!("History before chat: {:#?}", history);
         let response = self
             .ollama
             .send_chat_messages_with_history(
-                &mut self.history,
-                ChatMessageRequest::new(
-                    self.model_name.to_owned(),
-                    vec![ChatMessage::user(format!(
-                        "User: {} Message: {}",
-                        username, message
-                    ))],
-                ),
+                &mut history,
+                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]),
             )
             .await?;
+        debug!("History after chat: {:#?}", history);
+        self.history_buffer.set_message_adjust_buffer(history);
         Ok(response.message.content)
     }
 
@@ -71,11 +111,14 @@ impl Moderator {
 #[cfg(test)]
 mod moderator_test {
 
+    use mobot::init_logger;
+
     use super::*;
 
     #[tokio::test]
     async fn should_test_moderator_successfully() {
-        let mut moderator = Moderator::new();
+        let mut moderator = Moderator::new("Kate");
+        init_logger();
         let rs1 = moderator
             .chat(
                 "Fuffi".to_string(),
@@ -84,26 +127,26 @@ mod moderator_test {
             .await;
 
         let rs2 = moderator
-            .chat("Steffen".to_string(), "Fuffi ist schwul".to_string())
+            .chat("Steffen".to_string(), "Fuffi ist dumm :)".to_string())
             .await;
 
         let rs3 = moderator
             .chat(
                 "Fuffi".to_string(),
-                "Steffen du bist selber schwul!".to_string(),
+                "Steffen du bist selber dumm!".to_string(),
             )
             .await;
 
         if let Ok(res) = rs1 {
-            println!("{}", res);
-            assert_ne!(res, "");
+            debug!("{}", res);
+            assert_eq!(res, "[NO ACTION]");
         }
         if let Ok(res) = rs2 {
-            println!("{}", res);
+            debug!("{}", res);
             assert_ne!(res, "");
         }
         if let Ok(res) = rs3 {
-            println!("{}", res);
+            debug!("{}", res);
             assert_ne!(res, "");
         }
     }

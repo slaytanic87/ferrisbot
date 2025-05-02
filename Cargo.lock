@@ -454,10 +454,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
+name = "dotenvy"
+version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "dtoa"
@@ -573,12 +573,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferrisgram"
+name = "ferrisbot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "dotenv",
+ "dotenvy",
  "log",
  "mobot",
  "ollama-rs",
@@ -1420,7 +1420,7 @@ dependencies = [
 [[package]]
 name = "mobot"
 version = "0.4.0"
-source = "git+https://github.com/slaytanic87/mobot?tag=0.5.0#89eb440d433694be830aebc1d35a2f23bfbda26d"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.4.0#4c9a1d234c7865b59aec6b106e1997a52140e50e"
 dependencies = [
  "anyhow",
  "argh",
@@ -1445,7 +1445,7 @@ dependencies = [
 [[package]]
 name = "mobot-derive"
 version = "0.1.3"
-source = "git+https://github.com/slaytanic87/mobot?tag=0.5.0#89eb440d433694be830aebc1d35a2f23bfbda26d"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.4.0#4c9a1d234c7865b59aec6b106e1997a52140e50e"
 dependencies = [
  "proc-macro2",
  "quote",
