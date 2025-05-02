@@ -32,22 +32,22 @@ async fn main() {
     router
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("admin"))),
-            ferrisgram::add_admin_action,
+            ferrisbot::add_admin_action,
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("mute"))),
-            ferrisgram::mute_user_action,
+            ferrisbot::mute_user_action,
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("unmute"))),
-            ferrisgram::mute_user_action,
+            ferrisbot::mute_user_action,
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("greeting"))),
-            ferrisgram::bot_chat_greeting,
+            ferrisbot::bot_chat_greeting,
         )
         .add_route(Route::Message(Matcher::Any), |event, state| {
-            ferrisgram::bot_chat_actions(event, state)
+            ferrisbot::bot_chat_actions(event, state)
         });
 
     router.start().await;
