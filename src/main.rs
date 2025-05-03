@@ -8,12 +8,12 @@ async fn main() {
     mobot::init_logger();
     let commands = vec![
         BotCommand {
-            command: "admin".into(),
-            description: "Add a user to admin list".into(),
+            command: "greeting".into(),
+            description: "Begrüß die Gruppe".into(),
         },
         BotCommand {
-            command: "greeting".into(),
-            description: "Greet the user".into(),
+            command: "summerize".into(),
+            description: "Gib eine Zusammenfassung der letzten Chatverlauf".into(),
         },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
@@ -45,6 +45,10 @@ async fn main() {
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("greeting"))),
             ferrisbot::bot_chat_greeting,
+        )
+        .add_route(
+            Route::Message(Matcher::BotCommand(String::from("summerize"))),
+            ferrisbot::chat_summerize_action
         )
         .add_route(Route::Message(Matcher::Any), |event, state| {
             ferrisbot::bot_chat_actions(event, state)

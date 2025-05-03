@@ -1,10 +1,11 @@
-use crate::Moderator;
+use crate::{application, Moderator};
 use log::debug;
 use mobot::{
     api::{ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest},
     Action, BotState, Event, State,
 };
 use regex::Regex;
+use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 fn extract_username(value: &str) -> Vec<&str> {
     let separator = Regex::new(r"@.+");
@@ -58,12 +59,19 @@ pub async fn bot_chat_actions(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let message: String = event.update.get_message()?.clone().text.unwrap().clone();
-    let mut bot_controller = state.get().write().await;
+    let title: String = event
+        .update
+        .get_message()?
+        .clone()
+        .chat
+        .title
+        .unwrap_or(user_opt.clone().unwrap_or("".to_string()));
+    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
     let reply_rs = bot_controller
         .moderator
-        .chat(user_opt.clone().unwrap(), message)
+        .chat_forum(title, user_opt.clone().unwrap_or("".to_string()), message)
         .await;
     if bot_controller
         .moderator
@@ -72,7 +80,9 @@ pub async fn bot_chat_actions(
         return Ok(Action::Done);
     }
     if let Ok(reply_message) = reply_rs {
-        return Ok(Action::ReplyText(reply_message));
+        if !reply_message.contains(application::NO_ACTION) {
+            return Ok(Action::ReplyText(reply_message));
+        }
     }
     Ok(Action::Done)
 }
@@ -81,8 +91,8 @@ pub async fn add_admin_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let mut bot_controller = state.get().write().await;
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
+    let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let is_forum: Option<bool> = event.update.get_message()?.clone().chat.is_forum;
     let message: Option<String> = event.update.get_message()?.clone().text;
 
@@ -120,12 +130,30 @@ pub async fn add_admin_action(
     Ok(Action::ReplyText("Added to admin list".into()))
 }
 
+pub async fn chat_summerize_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
+    let title = event.update.get_message()?.clone().chat.title;
+    if title.is_none() {
+        return Ok(Action::ReplyText("Channel title not found".into()));
+    }
+    let summerize_message_rs = bot_controller
+        .moderator
+        .summerize_chat(title.unwrap())
+        .await;
+    if let Ok(summary) = summerize_message_rs {
+        return Ok(Action::ReplyText(summary));
+    }
+    Ok(Action::Done)
+}
+
 pub async fn mute_user_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
-
+    let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
 
     if reply_to_message_opt.is_none() {
@@ -151,7 +179,7 @@ pub async fn mute_user_action(
         .unwrap()
         .to_string();
 
-    let bot_controller = state.get().write().await;
+    let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     if !bot_controller
         .moderator
         .is_administrator(user_opt.unwrap().as_str())
@@ -184,9 +212,9 @@ pub async fn mute_user_action(
         until_date: Some(mute_time_60s),
     };
 
-    let success_muted = event.api.restrict_chat_member(&restrict_chat_req).await?;
+    let is_success_muted = event.api.restrict_chat_member(&restrict_chat_req).await?;
 
-    if !success_muted {
+    if !is_success_muted {
         return Ok(Action::ReplyText("Failed to mute user".into()));
     }
 
@@ -200,7 +228,7 @@ pub async fn unmute_user_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.get_message()?.clone().chat.username;
+    let user_opt: Option<String> = event.update.from_user()?.clone().username;
 
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
 
@@ -217,6 +245,7 @@ pub async fn unmute_user_action(
         .unwrap()
         .as_i64()
         .unwrap();
+
     let username_be_unmuted: String = reply_to_message_opt
         .unwrap()
         .get("from")

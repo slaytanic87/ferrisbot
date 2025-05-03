@@ -6,6 +6,7 @@ use ollama_rs::{
 use std::{collections::VecDeque, env, error::Error, vec};
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 15;
+pub const NO_ACTION: &str = "[NO ACTION]";
 
 #[derive(Clone, Default)]
 pub struct HistoryBuffer {
@@ -42,6 +43,10 @@ impl HistoryBuffer {
         ]
         .concat()
     }
+
+    pub fn get_chat_history_only(&self) -> Vec<ChatMessage> {
+        self.history_queue.clone().into()
+    }
 }
 
 #[derive(Clone, Default)]
@@ -61,13 +66,14 @@ impl Moderator {
                 .parse()
                 .unwrap(),
         );
-        let model_name = env::var("LLM_MODEL").unwrap_or(String::from("llama3.2:latest"));
+        let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         let messages = vec![ChatMessage::system(format!(
-            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator to prevent members using vulgar expression, hot discussions or insult each other.
-Remember that your task is just observe the discussions in the group and keep it peacefully, otherwise you have to advise the members in the chat group directly to follow the rules if they are not following the rules repeatedly. The preferred language in the chat group is German.
-You just need to repond with the chat group member if you see a user using vulgar expression or insulting each other. Otherwise just answer with: [NO ACTION]",
-            name
+            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator in different channels to prevent members using vulgar expression, hot discussions or blaming each other.
+Remember that your task is to keep the discussions in dedicated channels peacefully. In the case if the members not following the rules repeatedly, give them an advise. The preferred language in the chat group is German.
+You just need to repond with the chat group member if you see a user using vulgar expression, they asking you directly or insulting each other. Otherwise answer exactly with: {}",
+            name,
+            NO_ACTION
         ))];
         let history_buffer = HistoryBuffer::new(messages);
 
@@ -79,12 +85,16 @@ You just need to repond with the chat group member if you see a user using vulga
         }
     }
 
-    pub async fn chat(
+    pub async fn chat_forum(
         &mut self,
+        topic: String,
         username: String,
         message: String,
     ) -> Result<String, Box<dyn Error>> {
-        let user_message = ChatMessage::user(format!("User: {}, Message: {}", username, message));
+        let user_message = ChatMessage::user(format!(
+            "Channel: {}, User: {}, Message: {}",
+            topic, username, message
+        ));
         let mut history = self.history_buffer.get_history();
         debug!("History before chat: {:#?}", history);
         let response = self
@@ -96,6 +106,25 @@ You just need to repond with the chat group member if you see a user using vulga
             .await?;
         debug!("History after chat: {:#?}", history);
         self.history_buffer.set_message_adjust_buffer(history);
+        Ok(response.message.content)
+    }
+
+    pub async fn summerize_chat(
+        &self,
+        topic: String,
+    ) -> Result<String, Box<dyn Error>> {
+        let user_message = ChatMessage::user(format!(
+            "Summerize what happened in the channel {} in the past in german language please.",
+            topic
+        ));
+        let mut history = self.history_buffer.get_chat_history_only();
+        history.push(user_message);
+        debug!("History: {:#?}", history);
+
+        let response = self
+            .ollama
+            .send_chat_messages(ChatMessageRequest::new(self.model_name.to_owned(), history))
+            .await?;
         Ok(response.message.content)
     }
 
@@ -113,6 +142,8 @@ mod moderator_test {
 
     use mobot::init_logger;
 
+    use crate::application;
+
     use super::*;
 
     #[tokio::test]
@@ -120,34 +151,73 @@ mod moderator_test {
         let mut moderator = Moderator::new("Kate");
         init_logger();
         let rs1 = moderator
-            .chat(
-                "Fuffi".to_string(),
+            .chat_forum(
+                "Blume".to_string(),
+                "Sabine".to_string(),
                 "Hallo Leute, gehts euch gut?".to_string(),
             )
             .await;
 
         let rs2 = moderator
-            .chat("Steffen".to_string(), "Fuffi ist dumm :)".to_string())
+            .chat_forum(
+                "Blume".to_string(),
+                "Steffen".to_string(),
+                "Sabine ist dumm :)".to_string(),
+            )
             .await;
 
         let rs3 = moderator
-            .chat(
-                "Fuffi".to_string(),
+            .chat_forum(
+                "Blume".to_string(),
+                "Sabine".to_string(),
                 "Steffen du bist selber dumm!".to_string(),
             )
             .await;
 
+        let rs4 = moderator
+            .chat_forum(
+                "Blume".to_string(),
+                "Kevin".to_string(),
+                "Hallo Kate in welchen Channel sind wir gerade?".to_string(),
+            )
+            .await;
         if let Ok(res) = rs1 {
             debug!("{}", res);
-            assert_eq!(res, "[NO ACTION]");
+            assert!(res.contains(application::NO_ACTION));
         }
         if let Ok(res) = rs2 {
             debug!("{}", res);
-            assert_ne!(res, "");
+            assert_ne!(res, application::NO_ACTION);
         }
         if let Ok(res) = rs3 {
             debug!("{}", res);
-            assert_ne!(res, "");
+            assert_ne!(res, application::NO_ACTION);
+        }
+        if let Ok(res) = rs4 {
+            debug!("{}", res);
+            assert_ne!(res, application::NO_ACTION);
+        }
+    }
+
+    #[tokio::test]
+    async fn should_test_moderator_summerize_chat_successfully() {
+        let mut moderator = Moderator::new("Kate");
+        init_logger();
+        let forum_name = "Spiel und Spaß".to_string();
+        let _ = moderator.chat_forum(forum_name.clone(), "Sabine".to_string(), "Hallo Leute, gehts euch gut?".to_string()).await;
+        let _ = moderator.chat_forum(forum_name.clone(), "Kevin".to_string(), "Jau alles bestens".to_string()).await;
+        let _ = moderator.chat_forum(forum_name.clone(), "Steffi".to_string(), "Wo ist Steffen in letzter Zeit?".to_string()).await;
+        let _ = moderator.chat_forum(forum_name.clone(), "Sabine".to_string(), "Keine Ahnung wo er steck".to_string()).await;
+        let _ = moderator.chat_forum(forum_name.clone(), "Kevin".to_string(), "Der hat Urlaub gerade auf der Karibik hehe :)".to_string()).await;
+        let _ = moderator.chat_forum(forum_name.clone(), "Sabine".to_string(), "Schön da möchte ich auch mal hin".to_string()).await;
+        let _ = moderator.chat_forum("Azure".to_string(), "Conrad".to_string(), "Was passiert gerade in der Cloud?".to_string()).await;
+        let _ = moderator.chat_forum("Azure".to_string(), "Morice".to_string(), "Keine Ahnung, warscheinlich gab es dort einen update".to_string()).await;
+
+        let rs = moderator
+            .summerize_chat(forum_name)
+            .await;
+        if let Ok(res) = rs {
+            debug!("{}", res);
         }
     }
 }
