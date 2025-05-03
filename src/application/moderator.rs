@@ -69,7 +69,7 @@ impl Moderator {
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         let messages = vec![ChatMessage::system(format!(
-            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator in different channels to prevent members using vulgar expression, hot discussions or blaming each other.
+            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator in different channels to prevent members using vulgar expression, fall into hot discussions or blaming each other.
 Remember that your task is to keep the discussions in dedicated channels peacefully. In the case if the members not following the rules repeatedly, give them an advise. The preferred language in the chat group is German.
 You just need to repond with the chat group member if you see a user using vulgar expression, they asking you directly or insulting each other. Otherwise answer exactly with: {}",
             name,
