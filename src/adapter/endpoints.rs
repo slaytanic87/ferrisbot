@@ -134,7 +134,7 @@ pub async fn add_admin_action(
     Ok(Action::ReplyText("Added to admin list".into()))
 }
 
-pub async fn chat_summerize_action(
+pub async fn chat_summarize_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {

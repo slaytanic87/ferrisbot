@@ -12,7 +12,7 @@ async fn main() {
             description: "Begrüß die Gruppe".into(),
         },
         BotCommand {
-            command: "summerize".into(),
+            command: "summary".into(),
             description: "Gib eine Zusammenfassung der letzten Chatverlauf".into(),
         },
     ];
@@ -47,8 +47,8 @@ async fn main() {
             ferrisbot::bot_greeting_action,
         )
         .add_route(
-            Route::Message(Matcher::BotCommand(String::from("summerize"))),
-            ferrisbot::chat_summerize_action
+            Route::Message(Matcher::BotCommand(String::from("summary"))),
+            ferrisbot::chat_summarize_action
         )
         .add_route(Route::Message(Matcher::Any), |event, state| {
             ferrisbot::handle_chat_messages(event, state)

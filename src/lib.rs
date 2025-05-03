@@ -3,7 +3,7 @@ mod application;
 pub use adapter::add_admin_action;
 pub use adapter::handle_chat_messages;
 pub use adapter::bot_greeting_action;
-pub use adapter::chat_summerize_action;
+pub use adapter::chat_summarize_action;
 pub use adapter::mute_user_action;
 pub use adapter::unmute_user_action;
 pub use adapter::BotController;

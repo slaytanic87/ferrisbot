@@ -114,7 +114,7 @@ You just need to repond with the chat group member if you see a user using vulga
         topic: String,
     ) -> Result<String, Box<dyn Error>> {
         let user_message = ChatMessage::user(format!(
-            "Summerize what happened in the channel {} in the past in german language please.",
+            "Summarize what happened in the channel {} in the past in german language please.",
             topic
         ));
         let mut history = self.history_buffer.get_chat_history_only();
