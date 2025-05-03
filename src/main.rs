@@ -40,18 +40,18 @@ async fn main() {
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("unmute"))),
-            ferrisbot::mute_user_action,
+            ferrisbot::unmute_user_action,
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("greeting"))),
-            ferrisbot::bot_chat_greeting,
+            ferrisbot::bot_greeting_action,
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("summerize"))),
             ferrisbot::chat_summerize_action
         )
         .add_route(Route::Message(Matcher::Any), |event, state| {
-            ferrisbot::bot_chat_actions(event, state)
+            ferrisbot::handle_chat_messages(event, state)
         });
 
     router.start().await;
