@@ -5,7 +5,7 @@ use ollama_rs::{
 };
 use std::{collections::VecDeque, env, error::Error, vec};
 
-const MAX_HISTORY_BUFFER_SIZE: usize = 15;
+const MAX_HISTORY_BUFFER_SIZE: usize = 50;
 pub const NO_ACTION: &str = "[NO ACTION]";
 
 #[derive(Clone, Default)]

@@ -60,25 +60,32 @@ pub async fn bot_chat_actions(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.from_user()?.clone().username;
-    let message: String = event.update.get_message()?.clone().text.unwrap().clone();
+    let first_name: String = event.update.from_user()?.clone().first_name;
+    let message: Option<String> = event.update.get_message()?.clone().text;
+
+    // Only text message is supported
+    if message.is_none() {
+        return Ok(Action::Done);
+    }
     let title: String = event
         .update
         .get_message()?
         .clone()
         .chat
         .title
-        .unwrap_or(user_opt.clone().unwrap_or("".to_string()));
+        .unwrap_or(first_name.clone());
+
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
-    let reply_rs = bot_controller
-        .moderator
-        .chat_forum(title, user_opt.clone().unwrap_or("".to_string()), message)
-        .await;
-    if bot_controller
-        .moderator
-        .is_administrator(user_opt.unwrap().as_str())
-    {
+
+    if bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
         return Ok(Action::Done);
     }
+
+    let reply_rs = bot_controller
+        .moderator
+        .chat_forum(title, first_name, message.unwrap())
+        .await;
+
     if let Ok(reply_message) = reply_rs {
         if !reply_message.contains(application::NO_ACTION) {
             return Ok(Action::ReplyText(reply_message));
