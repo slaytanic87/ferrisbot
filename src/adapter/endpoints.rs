@@ -77,7 +77,10 @@ pub async fn handle_chat_messages(
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
 
-    if bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+    if bot_controller
+        .moderator
+        .is_administrator(user_opt.unwrap().as_str())
+    {
         return Ok(Action::Done);
     }
 
@@ -114,7 +117,10 @@ pub async fn add_admin_action(
             "Adding user to admin list is not allowed in topics".into(),
         ));
     }
-    if !bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+    if !bot_controller
+        .moderator
+        .is_administrator(user_opt.unwrap().as_str())
+    {
         return Ok(Action::ReplyText(
             "You don't have permission to nominate users".into(),
         ));
@@ -184,7 +190,10 @@ pub async fn mute_user_action(
         .to_string();
 
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
-    if !bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+    if !bot_controller
+        .moderator
+        .is_administrator(user_opt.unwrap().as_str())
+    {
         return Ok(Action::Done);
     }
 
@@ -258,7 +267,10 @@ pub async fn unmute_user_action(
         .to_string();
 
     let bot_controller = state.get().write().await;
-    if !bot_controller.moderator.is_administrator(user_opt.unwrap().as_str()) {
+    if !bot_controller
+        .moderator
+        .is_administrator(user_opt.unwrap().as_str())
+    {
         return Ok(Action::Done);
     }
 

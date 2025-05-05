@@ -69,9 +69,15 @@ impl Moderator {
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         let messages = vec![ChatMessage::system(format!(
-            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator in different channels to prevent members using vulgar expression, fall into hot discussions or blaming each other.
-Remember that your task is to keep the discussions in dedicated channels peacefully. In the case if the members not following the rules repeatedly, give them an advise. The preferred language in the chat group is German.
-You just need to repond with the chat group member if you see a user using vulgar expression, they asking you directly or insulting each other. Otherwise answer exactly with: {}",
+            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator in different channels to prevent members using vulgar expression, fall into hot discussions or blaming each other. The preferred language in the chat group is German.
+Your tasks looks as follows:
+1. keep the discussions in dedicated channels peacefully.
+2. If the members not following the rules repeatedly, give them an advise.
+Your need to response to the members if the following conditions apply:
+1. if you see the members using vulgar expression
+2. if they asking you directly
+3. if they insulting each other
+If none of the condition applied just answer exactly with: {}",
             name,
             NO_ACTION
         ))];
@@ -109,10 +115,7 @@ You just need to repond with the chat group member if you see a user using vulga
         Ok(response.message.content)
     }
 
-    pub async fn summerize_chat(
-        &self,
-        topic: String,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn summerize_chat(&self, topic: String) -> Result<String, Box<dyn Error>> {
         let user_message = ChatMessage::user(format!(
             "Summarize what happened in the channel {} in the past in german language please.",
             topic
@@ -204,18 +207,64 @@ mod moderator_test {
         let mut moderator = Moderator::new("Kate");
         init_logger();
         let forum_name = "Spiel und Spaß".to_string();
-        let _ = moderator.chat_forum(forum_name.clone(), "Sabine".to_string(), "Hallo Leute, gehts euch gut?".to_string()).await;
-        let _ = moderator.chat_forum(forum_name.clone(), "Kevin".to_string(), "Jau alles bestens".to_string()).await;
-        let _ = moderator.chat_forum(forum_name.clone(), "Steffi".to_string(), "Wo ist Steffen in letzter Zeit?".to_string()).await;
-        let _ = moderator.chat_forum(forum_name.clone(), "Sabine".to_string(), "Keine Ahnung wo er steck".to_string()).await;
-        let _ = moderator.chat_forum(forum_name.clone(), "Kevin".to_string(), "Der hat Urlaub gerade auf der Karibik hehe :)".to_string()).await;
-        let _ = moderator.chat_forum(forum_name.clone(), "Sabine".to_string(), "Schön da möchte ich auch mal hin".to_string()).await;
-        let _ = moderator.chat_forum("Azure".to_string(), "Conrad".to_string(), "Was passiert gerade in der Cloud?".to_string()).await;
-        let _ = moderator.chat_forum("Azure".to_string(), "Morice".to_string(), "Keine Ahnung, warscheinlich gab es dort einen update".to_string()).await;
-
-        let rs = moderator
-            .summerize_chat(forum_name)
+        let _ = moderator
+            .chat_forum(
+                forum_name.clone(),
+                "Sabine".to_string(),
+                "Hallo Leute, gehts euch gut?".to_string(),
+            )
             .await;
+        let _ = moderator
+            .chat_forum(
+                forum_name.clone(),
+                "Kevin".to_string(),
+                "Jau alles bestens".to_string(),
+            )
+            .await;
+        let _ = moderator
+            .chat_forum(
+                forum_name.clone(),
+                "Steffi".to_string(),
+                "Wo ist Steffen in letzter Zeit?".to_string(),
+            )
+            .await;
+        let _ = moderator
+            .chat_forum(
+                forum_name.clone(),
+                "Sabine".to_string(),
+                "Keine Ahnung wo er steck".to_string(),
+            )
+            .await;
+        let _ = moderator
+            .chat_forum(
+                forum_name.clone(),
+                "Kevin".to_string(),
+                "Der hat Urlaub gerade auf der Karibik hehe :)".to_string(),
+            )
+            .await;
+        let _ = moderator
+            .chat_forum(
+                forum_name.clone(),
+                "Sabine".to_string(),
+                "Schön da möchte ich auch mal hin".to_string(),
+            )
+            .await;
+        let _ = moderator
+            .chat_forum(
+                "Azure".to_string(),
+                "Conrad".to_string(),
+                "Was passiert gerade in der Cloud?".to_string(),
+            )
+            .await;
+        let _ = moderator
+            .chat_forum(
+                "Azure".to_string(),
+                "Morice".to_string(),
+                "Keine Ahnung, wahrscheinlich gab es dort einen update".to_string(),
+            )
+            .await;
+
+        let rs = moderator.summerize_chat(forum_name).await;
         if let Ok(res) = rs {
             debug!("{}", res);
         }
