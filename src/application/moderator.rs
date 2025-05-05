@@ -44,6 +44,10 @@ impl HistoryBuffer {
         .concat()
     }
 
+    pub fn get_initial_prompt_messages(&self) -> Vec<ChatMessage> {
+        self.initial_prompt_messages.clone()
+    }
+
     pub fn get_chat_history_only(&self) -> Vec<ChatMessage> {
         self.history_queue.clone().into()
     }
@@ -131,7 +135,20 @@ If none of the condition applied just answer exactly with: {}",
         Ok(response.message.content)
     }
 
-    pub fn add_administrator(&mut self, username: String) {
+    pub async fn introduce_moderator(&self) -> Result<String, Box<dyn Error>> {
+        let mut history = self.history_buffer.get_initial_prompt_messages();
+        history.push(ChatMessage::user("Introduce yourself in the group in german".to_string()));
+
+        debug!("History: {:#?}", history);
+
+        let response = self
+            .ollama
+            .send_chat_messages(ChatMessageRequest::new(self.model_name.to_owned(), history))
+            .await?;
+        Ok(response.message.content)
+    }
+
+    pub fn register_administrator(&mut self, username: String) {
         self.administrators.push(username);
     }
 

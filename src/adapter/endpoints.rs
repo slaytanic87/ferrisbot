@@ -45,14 +45,15 @@ pub async fn bot_greeting_action(
         let username_opt: Option<String> = admin.user.username.clone();
         if let Some(username) = username_opt {
             if !bot_controller.moderator.is_administrator(username.as_str()) {
-                bot_controller.moderator.add_administrator(username);
+                bot_controller.moderator.register_administrator(username);
             }
         }
     });
-    Ok(Action::ReplyText(format!(
-        "Hallo zusammen ich bin {}, ich bin als Hilfsmoderator hier um die Gruppe zu unterstützen!",
-        bot_controller.name
-    )))
+    let reponse_rs = bot_controller.moderator.introduce_moderator().await;
+    if let Ok(response) = reponse_rs {
+        return Ok(Action::ReplyText(response));
+    }
+    Ok(Action::Done)
 }
 
 pub async fn handle_chat_messages(
@@ -135,7 +136,7 @@ pub async fn add_admin_action(
 
     for user in extracted_usernames.iter() {
         user.to_string().remove(0);
-        bot_controller.moderator.add_administrator(user.to_string());
+        bot_controller.moderator.register_administrator(user.to_string());
     }
     Ok(Action::ReplyText("Added to admin list".into()))
 }
