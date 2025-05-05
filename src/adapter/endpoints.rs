@@ -36,19 +36,22 @@ pub async fn bot_greeting_action(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
-    let chat_id = event.update.get_message()?.clone().chat.id.to_string();
-    let admin_list = event
-        .api
-        .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id))
-        .await?;
-    admin_list.iter().for_each(|admin| {
-        let username_opt: Option<String> = admin.user.username.clone();
-        if let Some(username) = username_opt {
-            if !bot_controller.moderator.is_administrator(username.as_str()) {
-                bot_controller.moderator.register_administrator(username);
+    let chat_type = event.update.get_message()?.clone().chat.chat_type;
+    if chat_type != "private" {
+        let chat_id = event.update.get_message()?.chat.id.to_string();
+        let admin_list = event
+            .api
+            .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id))
+            .await?;
+        admin_list.iter().for_each(|admin| {
+            let username_opt: Option<String> = admin.user.username.clone();
+            if let Some(username) = username_opt {
+                if !bot_controller.moderator.is_administrator(username.as_str()) {
+                    bot_controller.moderator.register_administrator(username);
+                }
             }
-        }
-    });
+        });
+    }
     let reponse_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = reponse_rs {
         return Ok(Action::ReplyText(response));

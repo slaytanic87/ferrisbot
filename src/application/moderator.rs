@@ -73,17 +73,14 @@ impl Moderator {
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         let messages = vec![ChatMessage::system(format!(
-            "As an AI assistant in a german speaking Telegram group, your name is {} and your role is supporting the admins as a moderator in different channels to prevent members using vulgar expression, fall into hot discussions or blaming each other. The preferred language in the chat group is German.
+            "As an AI assistant in a german speaking Telegram group, your name is {name} and your role is supporting the admins as a moderator in different channels to prevent group members using vulgar expression, fall into hot discussions or blaming each other. The spoken language in the chat group is German and you know the people well.
 Your tasks looks as follows:
 1. keep the discussions in dedicated channels peacefully.
-2. If the members not following the rules repeatedly, give them an advise.
-Your need to response to the members if the following conditions apply:
-1. if you see the members using vulgar expression
-2. if they asking you directly
-3. if they insulting each other
-If none of the condition applied just answer exactly with: {}",
-            name,
-            NO_ACTION
+2. If the group members using vulgar expression, please give them a warning.
+3. If the group members not following the rules, give them an advise to leave the group if they not stop.
+4. If they if they insulting each other, please give them a warning.
+5. If they are asking you directly with your name {name}, please answer their question.
+If none of the condition rules 1..5 applied and there is no question for you, just answer exactly with: {NO_ACTION} only"
         ))];
         let history_buffer = HistoryBuffer::new(messages);
 
