@@ -6,7 +6,7 @@ use ollama_rs::{
 use std::{collections::VecDeque, env, error::Error, vec};
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 50;
-pub const NO_ACTION: &str = "[NO ACTION]";
+pub const NO_ACTION: &str = "NO ACTION";
 
 #[derive(Clone, Default)]
 pub struct HistoryBuffer {
@@ -70,7 +70,7 @@ impl Moderator {
                 .parse()
                 .unwrap(),
         );
-        let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
+        let model_name = env::var("LLM_MODEL").unwrap_or(String::from("llama3.2:latest"));
 
         let messages = vec![ChatMessage::system(format!(
             "As an AI assistant in a german speaking Telegram group, your name is {name} and your role is supporting the admins as a moderator in different channels to prevent group members using vulgar expression, fall into hot discussions or blaming each other. The spoken language in the chat group is German and you know the people well.
@@ -82,7 +82,7 @@ Your tasks are follows:
 5. If they if they insulting each other, please give them a warning.
 6. If they are asking you directly with your name {name}, please answer their question.
 Output format: text message
-If none of the rules above 1..6 applied then reply with a static: {NO_ACTION}"
+If none of the tasks above 1..6 applied don't response to them and reply with a static: [{NO_ACTION}]"
         ))];
         let history_buffer = HistoryBuffer::new(messages);
 
@@ -202,7 +202,7 @@ mod moderator_test {
             .await;
         if let Ok(res) = rs1 {
             debug!("{}", res);
-            assert!(res.contains(application::NO_ACTION));
+            assert!(!res.contains(application::NO_ACTION));
         }
         if let Ok(res) = rs2 {
             debug!("{}", res);
