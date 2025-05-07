@@ -69,6 +69,7 @@ pub async fn handle_chat_messages(
 
     // Only text message is supported
     if message.is_none() {
+        debug!("Empty update Message");
         return Ok(Action::Done);
     }
     let title: String = event
