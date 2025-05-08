@@ -50,9 +50,10 @@ async fn main() {
             Route::Message(Matcher::BotCommand(String::from("summary"))),
             ferrisbot::chat_summarize_action,
         )
-        .add_route(Route::Message(Matcher::Any), |event, state| {
-            ferrisbot::handle_chat_messages(event, state)
-        });
+        .add_route(
+            Route::Message(Matcher::Any),
+            ferrisbot::handle_chat_messages,
+        );
 
     router.start().await;
 }

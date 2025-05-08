@@ -1,7 +1,7 @@
 use crate::{application, Moderator};
 use log::debug;
 use mobot::{
-    api::{ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest},
+    api::{ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest, SendMessageRequest},
     Action, BotState, Event, State,
 };
 use regex::Regex;
@@ -63,41 +63,46 @@ pub async fn handle_chat_messages(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.from_user()?.clone().username;
+    let username_opt: Option<String> = event.update.from_user()?.clone().username;
     let first_name: String = event.update.from_user()?.clone().first_name;
     let message: Option<String> = event.update.get_message()?.clone().text;
+    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
 
     // Only text message is supported
     if message.is_none() {
-        debug!("Empty update Message");
         return Ok(Action::Done);
     }
-    let title: String = event
-        .update
-        .get_message()?
-        .clone()
-        .chat
-        .title
-        .unwrap_or(first_name.clone());
+    let channel_id: String = if let Some(thread_msg_id) = message_thread_id {
+        thread_msg_id.to_string()
+    } else {
+        event.update.chat_id()?.to_string()
+    };
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
-
+    let username = username_opt.unwrap_or("unknown".to_string());
     if bot_controller
         .moderator
-        .is_administrator(user_opt.unwrap().as_str())
+        .is_administrator(username.as_str())
     {
+        debug!("Ignoring admin user {}", username);
         return Ok(Action::Done);
     }
 
     let reply_rs = bot_controller
         .moderator
-        .chat_forum(title, first_name, message.unwrap())
+        .chat_forum(channel_id, first_name, message.unwrap())
         .await;
 
     if let Ok(reply_message) = reply_rs {
-        if !reply_message.contains(application::NO_ACTION) {
-            return Ok(Action::ReplyText(reply_message));
+        if reply_message.contains(application::NO_ACTION) {
+            return Ok(Action::Done);
         }
+        if let Some(thread_id) = message_thread_id {
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, reply_message).with_message_thread_id(thread_id);
+            event.api.send_message(message_re).await?;
+            return Ok(Action::Done);
+        }
+        return Ok(Action::ReplyText(reply_message));
     }
     Ok(Action::Done)
 }
@@ -124,7 +129,7 @@ pub async fn add_admin_action(
     }
     if !bot_controller
         .moderator
-        .is_administrator(user_opt.unwrap().as_str())
+        .is_administrator(user_opt.unwrap_or("unknown".to_string()).as_str())
     {
         return Ok(Action::ReplyText(
             "You don't have permission to nominate users".into(),
@@ -150,15 +155,24 @@ pub async fn chat_summarize_action(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
-    let title = event.update.get_message()?.clone().chat.title;
-    if title.is_none() {
-        return Ok(Action::ReplyText("Channel title not found".into()));
-    }
+    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+
+    let channel_id: String = if let Some(thread_msg_id) = message_thread_id {
+        thread_msg_id.to_string()
+    } else {
+        event.update.chat_id()?.to_string()
+    };
+
     let summerize_message_rs = bot_controller
         .moderator
-        .summerize_chat(title.unwrap())
+        .summerize_chat(channel_id)
         .await;
     if let Ok(summary) = summerize_message_rs {
+        if let Some(thread_id) = message_thread_id {
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary).with_message_thread_id(thread_id);
+            event.api.send_message(message_re).await?;
+            return Ok(Action::Done);
+        }
         return Ok(Action::ReplyText(summary));
     }
     Ok(Action::Done)
