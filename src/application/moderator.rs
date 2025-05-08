@@ -63,6 +63,10 @@ pub struct Moderator {
 
 impl Moderator {
     pub fn new(name: &str, task_template: &str) -> Self {
+        
+        let task_template = task_template
+            .replace("{name}", name);
+
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
             env::var("OLLAMA_PORT")
