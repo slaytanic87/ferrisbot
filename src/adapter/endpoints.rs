@@ -317,6 +317,14 @@ pub async fn unmute_user_action(
         return Ok(Action::Done);
     }
 
+    if bot_controller
+        .moderator
+        .is_administrator(username_be_unmuted.as_str())
+    {
+        debug!("User {} is admin, can't unmute", username_be_unmuted);
+        return Ok(Action::Done);
+    }
+
     let restrict_chat_req = RestrictChatMemberRequest {
         chat_id: event.update.get_message()?.clone().chat.id.to_string(),
         user_id: user_id_be_unmuted,
