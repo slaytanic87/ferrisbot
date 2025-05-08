@@ -37,4 +37,11 @@ export LLM_MODEL = "llama3.2:latest"
 
 ## Define Bot Task
 
-create or adjust the bot task as enumerations (natural language) in the prompt template task.md
+create or adjust the bot role definition as enumerations (natural language) in the prompt template role_definition.md
+
+**Variables placeholder**
+
+Following placeholders must be used in your role definition template
+
+Botname: {name}
+No response flag: {NO_ACTION}
