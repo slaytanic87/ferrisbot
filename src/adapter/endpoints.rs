@@ -37,6 +37,8 @@ pub async fn bot_greeting_action(
 ) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
     let chat_type = event.update.get_message()?.clone().chat.chat_type;
+    let message_thread_id_opt: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+
     if chat_type != "private" {
         let chat_id = event.update.get_message()?.chat.id.to_string();
         let admin_list = event
@@ -54,6 +56,11 @@ pub async fn bot_greeting_action(
     }
     let reponse_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = reponse_rs {
+        if let Some(message_thread_id) = message_thread_id_opt {
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, response).with_message_thread_id(message_thread_id);
+            event.api.send_message(message_re).await?;
+            return Ok(Action::Done);
+        }
         return Ok(Action::ReplyText(response));
     }
     Ok(Action::Done)
@@ -116,17 +123,16 @@ pub async fn add_admin_action(
     let is_forum: Option<bool> = event.update.get_message()?.clone().chat.is_forum;
     let message: Option<String> = event.update.get_message()?.clone().text;
 
-    if message.is_none() {
-        return Ok(Action::ReplyText("Message not found".into()));
+    if message.is_none() || user_opt.is_none() {
+        return Ok(Action::ReplyText("User or Message not found".into()));
     }
-    if user_opt.is_none() {
-        return Ok(Action::ReplyText("Username not found".into()));
-    }
-    if is_forum.is_none() || !is_forum.unwrap() {
+
+    if is_forum.is_some() && is_forum.unwrap() {
         return Ok(Action::ReplyText(
             "Adding user to admin list is not allowed in topics".into(),
         ));
     }
+
     if !bot_controller
         .moderator
         .is_administrator(user_opt.unwrap_or("unknown".to_string()).as_str())
@@ -184,8 +190,10 @@ pub async fn mute_user_action(
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
+    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
 
     if reply_to_message_opt.is_none() {
+        debug!("No reply to message object has beend found");
         return Ok(Action::Done);
     }
 
@@ -209,10 +217,20 @@ pub async fn mute_user_action(
         .to_string();
 
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
+    let username: String = user_opt.unwrap_or("unknown".to_string());
     if !bot_controller
         .moderator
-        .is_administrator(user_opt.unwrap().as_str())
+        .is_administrator(username.as_str())
     {
+        debug!("User {} don't have admin rights to mute", username);
+        return Ok(Action::Done);
+    }
+
+    if bot_controller
+        .moderator
+        .is_administrator(username_be_muted.as_str())
+    {
+        debug!("User {} is admin, can't mute", username_be_muted);
         return Ok(Action::Done);
     }
 
@@ -247,10 +265,15 @@ pub async fn mute_user_action(
         return Ok(Action::ReplyText("Failed to mute user".into()));
     }
 
-    Ok(Action::ReplyText(format!(
-        "@{} You are muted now!",
-        username_be_muted
-    )))
+    if let Some(thread_id) = message_thread_id {
+        let message_re = &SendMessageRequest::new(event.update.chat_id()?, format!(
+            "@{} You are muted now!",
+            username_be_muted
+        )).with_message_thread_id(thread_id);
+        event.api.send_message(message_re).await?;
+    }
+
+    Ok(Action::Done)
 }
 
 pub async fn unmute_user_action(
@@ -258,6 +281,7 @@ pub async fn unmute_user_action(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.from_user()?.clone().username;
+    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
 
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
 
@@ -319,8 +343,14 @@ pub async fn unmute_user_action(
     if !success_unmuted {
         return Ok(Action::ReplyText("Failed to unmute user".into()));
     }
-    Ok(Action::ReplyText(format!(
-        "@{} You are unmuted now!",
-        username_be_unmuted
-    )))
+
+    if let Some(thread_id) = message_thread_id {
+        let message_re = &SendMessageRequest::new(event.update.chat_id()?, format!(
+            "@{} You are unmuted now!",
+            username_be_unmuted
+        )).with_message_thread_id(thread_id);
+        event.api.send_message(message_re).await?;
+    }
+
+    Ok(Action::Done)
 }
