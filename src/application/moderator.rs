@@ -288,6 +288,7 @@ mod moderator_test {
         let rs = moderator.summerize_chat(channel_id).await;
         if let Ok(res) = rs {
             debug!("{}", res);
+            assert!(!res.contains("Cloud") && !res.contains("update"));
         }
     }
 }
