@@ -1,6 +1,16 @@
 use ferrisbot::BotController;
 use mobot::{api::BotCommand, Client, Matcher, Route, Router};
-use std::env;
+use std::{env, fs::read_to_string};
+
+fn read_prompt_template() -> String {
+    let template = read_to_string("./tasks.md");
+    match template {
+        Ok(content) => content,
+        Err(e) => {
+            panic!("Failed to read the prompt template file: {}", e);
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +27,7 @@ async fn main() {
         },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
-    let controller = BotController::new("Kate");
+    let controller = BotController::new("Kate", &read_prompt_template());
     let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
 
     router

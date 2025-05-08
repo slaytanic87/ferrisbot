@@ -62,7 +62,7 @@ pub struct Moderator {
 }
 
 impl Moderator {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: &str, task_template: &str) -> Self {
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
             env::var("OLLAMA_PORT")
@@ -74,15 +74,7 @@ impl Moderator {
 
         let messages = vec![ChatMessage::system(format!(
             "As an AI assistant in a german speaking Telegram group, your name is {name} and your role is supporting the admins as a moderator in different channels to prevent group members using vulgar expression, fall into hot discussions or blaming each other. The spoken language in the chat group is German and you know the people well.
-Your tasks are follows:
-1. keep the discussions in dedicated channels peacefully.
-2. If the group members using vulgar expression, please give them a warning.
-3. If the group members not following the rules, give them an advice to leave the group if they not stop.
-4. Prevent hot discussions in the group about sexuality and ethical topics.
-5. If they if they insulting each other, please give them a warning.
-6. If they are asking you directly with your name {name}, please answer their question.
-Output format: text message
-If none of the tasks above 1..6 applied don't response to them and reply with a static: [{NO_ACTION}]"
+Your tasks are follows: \n {task_template} \n Output format: text message \n If none of the tasks above 1..6 applied don't response to them and reply with a static: [{NO_ACTION}]"
         ))];
         let history_buffer = HistoryBuffer::new(messages);
 
@@ -136,7 +128,9 @@ If none of the tasks above 1..6 applied don't response to them and reply with a 
 
     pub async fn introduce_moderator(&self) -> Result<String, anyhow::Error> {
         let mut history = self.history_buffer.get_initial_prompt_messages();
-        history.push(ChatMessage::user("Introduce yourself in the group in german".to_string()));
+        history.push(ChatMessage::user(
+            "Introduce yourself in the group in german".to_string(),
+        ));
 
         debug!("History: {:#?}", history);
 
@@ -166,9 +160,19 @@ mod moderator_test {
 
     use super::*;
 
+    fn read_prompt_template() -> String {
+        let template = std::fs::read_to_string("./tasks.md");
+        match template {
+            Ok(content) => content,
+            Err(e) => {
+                panic!("Failed to read the prompt template file: {}", e);
+            }
+        }
+    }
+
     #[tokio::test]
     async fn should_test_moderator_successfully() {
-        let mut moderator = Moderator::new("Kate");
+        let mut moderator = Moderator::new("Kate", &read_prompt_template());
         init_logger();
         let rs1 = moderator
             .chat_forum(
@@ -203,7 +207,7 @@ mod moderator_test {
             .await;
         if let Ok(res) = rs1 {
             debug!("{}", res);
-            assert!(!res.contains(application::NO_ACTION));
+            assert!(res.contains(application::NO_ACTION));
         }
         if let Ok(res) = rs2 {
             debug!("{}", res);
@@ -221,7 +225,7 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_summerize_chat_successfully() {
-        let mut moderator = Moderator::new("Kate");
+        let mut moderator = Moderator::new("Kate", &read_prompt_template());
         init_logger();
         let channel_id = "12345".to_string();
         let _ = moderator

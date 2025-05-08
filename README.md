@@ -34,3 +34,7 @@ export OLLAMA_HOST_ADDR = "http:localhost"
 export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
 ```
+
+## Define Bot Task
+
+create or adjust the bot task as enumerations (natural language) in the prompt template task.md

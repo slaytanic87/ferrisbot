@@ -1,7 +1,10 @@
 use crate::{application, Moderator};
 use log::debug;
 use mobot::{
-    api::{ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest, SendMessageRequest},
+    api::{
+        ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest,
+        SendMessageRequest,
+    },
     Action, BotState, Event, State,
 };
 use regex::Regex;
@@ -22,8 +25,8 @@ pub struct BotController {
 }
 
 impl BotController {
-    pub fn new(name: &str) -> Self {
-        let moderator = Moderator::new(name);
+    pub fn new(name: &str, task_template: &str) -> Self {
+        let moderator = Moderator::new(name, task_template);
         Self {
             moderator,
             name: name.into(),
@@ -57,7 +60,8 @@ pub async fn bot_greeting_action(
     let reponse_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = reponse_rs {
         if let Some(message_thread_id) = message_thread_id_opt {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, response).with_message_thread_id(message_thread_id);
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, response)
+                .with_message_thread_id(message_thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
@@ -87,10 +91,7 @@ pub async fn handle_chat_messages(
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
     let username = username_opt.unwrap_or("unknown".to_string());
-    if bot_controller
-        .moderator
-        .is_administrator(username.as_str())
-    {
+    if bot_controller.moderator.is_administrator(username.as_str()) {
         debug!("Ignoring admin user {}", username);
         return Ok(Action::Done);
     }
@@ -105,7 +106,8 @@ pub async fn handle_chat_messages(
             return Ok(Action::Done);
         }
         if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, reply_message).with_message_thread_id(thread_id);
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, reply_message)
+                .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
@@ -151,7 +153,9 @@ pub async fn add_admin_action(
 
     for user in extracted_usernames.iter() {
         user.to_string().remove(0);
-        bot_controller.moderator.register_administrator(user.to_string());
+        bot_controller
+            .moderator
+            .register_administrator(user.to_string());
     }
     Ok(Action::ReplyText("Added to admin list".into()))
 }
@@ -169,13 +173,11 @@ pub async fn chat_summarize_action(
         event.update.chat_id()?.to_string()
     };
 
-    let summerize_message_rs = bot_controller
-        .moderator
-        .summerize_chat(channel_id)
-        .await;
+    let summerize_message_rs = bot_controller.moderator.summerize_chat(channel_id).await;
     if let Ok(summary) = summerize_message_rs {
         if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary).with_message_thread_id(thread_id);
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary)
+                .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
@@ -218,10 +220,7 @@ pub async fn mute_user_action(
 
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     let username: String = user_opt.unwrap_or("unknown".to_string());
-    if !bot_controller
-        .moderator
-        .is_administrator(username.as_str())
-    {
+    if !bot_controller.moderator.is_administrator(username.as_str()) {
         debug!("User {} don't have admin rights to mute", username);
         return Ok(Action::Done);
     }
@@ -259,17 +258,18 @@ pub async fn mute_user_action(
         until_date: Some(mute_time_60s),
     };
 
-    let is_success_muted = event.api.restrict_chat_member(&restrict_chat_req).await?;
+    let is_successful_muted = event.api.restrict_chat_member(&restrict_chat_req).await?;
 
-    if !is_success_muted {
+    if !is_successful_muted {
         return Ok(Action::ReplyText("Failed to mute user".into()));
     }
 
     if let Some(thread_id) = message_thread_id {
-        let message_re = &SendMessageRequest::new(event.update.chat_id()?, format!(
-            "@{} You are muted now!",
-            username_be_muted
-        )).with_message_thread_id(thread_id);
+        let message_re = &SendMessageRequest::new(
+            event.update.chat_id()?,
+            format!("@{} You are muted now!", username_be_muted),
+        )
+        .with_message_thread_id(thread_id);
         event.api.send_message(message_re).await?;
     }
 
@@ -282,7 +282,6 @@ pub async fn unmute_user_action(
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
 
     if reply_to_message_opt.is_none() {
@@ -347,16 +346,17 @@ pub async fn unmute_user_action(
         use_independent_chat_permissions: Some(false),
         until_date: None,
     };
-    let success_unmuted = event.api.restrict_chat_member(&restrict_chat_req).await?;
-    if !success_unmuted {
+    let is_successful_unmuted = event.api.restrict_chat_member(&restrict_chat_req).await?;
+    if !is_successful_unmuted {
         return Ok(Action::ReplyText("Failed to unmute user".into()));
     }
 
     if let Some(thread_id) = message_thread_id {
-        let message_re = &SendMessageRequest::new(event.update.chat_id()?, format!(
-            "@{} You are unmuted now!",
-            username_be_unmuted
-        )).with_message_thread_id(thread_id);
+        let message_re = &SendMessageRequest::new(
+            event.update.chat_id()?,
+            format!("@{} You are unmuted now!", username_be_unmuted),
+        )
+        .with_message_thread_id(thread_id);
         event.api.send_message(message_re).await?;
     }
 
