@@ -162,7 +162,7 @@ mod moderator_test {
     use super::*;
 
     fn read_prompt_template() -> String {
-        let template = std::fs::read_to_string("./tasks.md");
+        let template = std::fs::read_to_string("./role_definition.md");
         match template {
             Ok(content) => content,
             Err(e) => {

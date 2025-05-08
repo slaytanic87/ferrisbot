@@ -3,7 +3,7 @@ use mobot::{api::BotCommand, Client, Matcher, Route, Router};
 use std::{env, fs::read_to_string};
 
 fn read_prompt_template() -> String {
-    let template = read_to_string("./tasks.md");
+    let template = read_to_string("./role_definition.md");
     match template {
         Ok(content) => content,
         Err(e) => {
