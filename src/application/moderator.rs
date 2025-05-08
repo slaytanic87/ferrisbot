@@ -63,9 +63,9 @@ pub struct Moderator {
 
 impl Moderator {
     pub fn new(name: &str, task_template: &str) -> Self {
-        
         let task_template = task_template
-            .replace("{name}", name);
+            .replace("{name}", name)
+            .replace("{NO_ACTION}", NO_ACTION);
 
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
@@ -76,10 +76,7 @@ impl Moderator {
         );
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("llama3.2:latest"));
 
-        let messages = vec![ChatMessage::system(format!(
-            "As an AI assistant in a german speaking Telegram group, your name is {name} and your role is supporting the admins as a moderator in different channels to prevent group members using vulgar expression, fall into hot discussions or blaming each other. The spoken language in the chat group is German and you know the people well.
-Your tasks are follows: \n {task_template} \n Output format: text message \n If none of the tasks above 1..6 applied don't response to them and reply with a static: [{NO_ACTION}]"
-        ))];
+        let messages = vec![ChatMessage::system(task_template)];
         let history_buffer = HistoryBuffer::new(messages);
 
         Self {
@@ -116,7 +113,7 @@ Your tasks are follows: \n {task_template} \n Output format: text message \n If 
 
     pub async fn summerize_chat(&self, topic_id: String) -> Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
-            "Summarize what happened in the chat with the channel_id {} in the past in german language please. Please don't mention the channel_id in the summary.",
+            "Summarize only what happened in the chat with the channel_id: {} in the past in german language please. Please don't mention the channel_id in the summary.",
             topic_id
         ));
         let mut history = self.history_buffer.get_chat_history_only();
