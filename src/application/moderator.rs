@@ -1,9 +1,11 @@
 use log::debug;
 use ollama_rs::{
-    generation::chat::{request::ChatMessageRequest, ChatMessage},
+    generation::{chat::{request::ChatMessageRequest, ChatMessage}, tools::{ToolInfo, ToolType}},
     Ollama,
 };
-use std::{collections::VecDeque, env, vec};
+
+use std::collections::VecDeque;
+use std::env;
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 50;
 pub const NO_ACTION: &str = "NO ACTION";
@@ -59,6 +61,7 @@ pub struct Moderator {
     ollama: Ollama,
     history_buffer: HistoryBuffer,
     administrators: Vec<String>,
+    tool_infos: Vec<ToolInfo>,
 }
 
 impl Moderator {
@@ -84,7 +87,12 @@ impl Moderator {
             ollama: ollama_client,
             history_buffer,
             administrators: Vec::new(),
+            tool_infos: Vec::default(),
         }
+    }
+
+    pub fn add_tool(mut self, tool_type: ToolType, name: String, description: String) {
+        //self.tool_infos.push(ToolInfo::new::<_, T>());
     }
 
     pub async fn chat_forum(
@@ -92,7 +100,7 @@ impl Moderator {
         topic_id: String,
         username: String,
         message: String,
-    ) -> Result<String, anyhow::Error> {
+    ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
             "Channel_id: {} \n\n {}: {}",
             topic_id, username, message
@@ -103,7 +111,7 @@ impl Moderator {
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
-                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]),
+                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]).tools(self.tool_infos.clone()),
             )
             .await?;
         debug!("History after chat: {:#?}", history);
@@ -111,7 +119,7 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn summerize_chat(&self, topic_id: String) -> Result<String, anyhow::Error> {
+    pub async fn summerize_chat(&self, topic_id: String) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
             "Summarize only what happened in the chat with the channel_id: {} in the past in german language please. Please don't mention the channel_id in the summary.",
             topic_id
@@ -127,7 +135,7 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn introduce_moderator(&self) -> Result<String, anyhow::Error> {
+    pub async fn introduce_moderator(&self) -> std::result::Result<String, anyhow::Error> {
         let mut history = self.history_buffer.get_initial_prompt_messages();
         history.push(ChatMessage::user(
             "Introduce yourself in the group in german".to_string(),
