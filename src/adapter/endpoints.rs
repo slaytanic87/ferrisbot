@@ -1,4 +1,10 @@
-use crate::{application, Moderator};
+use crate::{
+    application::{
+        self,
+        tools::{self, WEB_SEARCH, WEB_SEARCH_DESCRIPTION},
+    },
+    Moderator,
+};
 use log::debug;
 use mobot::{
     api::{
@@ -8,6 +14,7 @@ use mobot::{
     Action, BotState, Event, State,
 };
 use regex::Regex;
+use schemars::schema_for;
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 fn extract_username(value: &str) -> Vec<&str> {
@@ -26,7 +33,11 @@ pub struct BotController {
 
 impl BotController {
     pub fn new(name: &str, task_template: &str) -> Self {
-        let moderator = Moderator::new(name, task_template);
+        let moderator = Moderator::new(name, task_template).add_tool(
+            WEB_SEARCH.to_string(),
+            WEB_SEARCH_DESCRIPTION.to_string(),
+            schema_for!(tools::WebSearchParams),
+        );
         Self {
             moderator,
             name: name.into(),
@@ -66,6 +77,34 @@ pub async fn bot_greeting_action(
             return Ok(Action::Done);
         }
         return Ok(Action::ReplyText(response));
+    }
+    Ok(Action::Done)
+}
+
+pub async fn web_search_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let message: Option<String> = event.update.get_message()?.clone().text;
+    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+    let first_name: String = event.update.from_user()?.clone().first_name;
+
+    // Only text message is supported
+    if message.is_none() {
+        return Ok(Action::Done);
+    }
+
+    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
+    let reply_rs = bot_controller.moderator.handle_tool(&first_name, &message.unwrap()).await;
+
+    if let Ok(reply_message) = reply_rs {
+        if let Some(thread_id) = message_thread_id {
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, reply_message)
+                .with_message_thread_id(thread_id);
+            event.api.send_message(message_re).await?;
+            return Ok(Action::Done);
+        }
+        return Ok(Action::ReplyText(reply_message));
     }
     Ok(Action::Done)
 }

@@ -1,11 +1,16 @@
 use log::debug;
 use ollama_rs::{
-    generation::{chat::{request::ChatMessageRequest, ChatMessage}, tools::{ToolInfo, ToolType}},
+    generation::{
+        chat::{request::ChatMessageRequest, ChatMessage},
+        tools::{ToolFunctionInfo, ToolInfo, ToolType},
+    },
     Ollama,
 };
-
-use std::collections::VecDeque;
+use schemars::schema::RootSchema;
 use std::env;
+use std::{collections::VecDeque, vec};
+
+use crate::application::tools::execute_tool;
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 50;
 pub const NO_ACTION: &str = "NO ACTION";
@@ -91,8 +96,17 @@ impl Moderator {
         }
     }
 
-    pub fn add_tool(mut self, tool_type: ToolType, name: String, description: String) {
-        //self.tool_infos.push(ToolInfo::new::<_, T>());
+    pub fn add_tool(mut self, name: String, description: String, parameters: RootSchema) -> Self {
+        let tool_info = ToolInfo {
+            tool_type: ToolType::Function,
+            function: ToolFunctionInfo {
+                name,
+                description,
+                parameters,
+            },
+        };
+        self.tool_infos.push(tool_info);
+        self
     }
 
     pub async fn chat_forum(
@@ -111,17 +125,63 @@ impl Moderator {
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
-                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]).tools(self.tool_infos.clone()),
+                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message])
             )
             .await?;
-        debug!("History after chat: {:#?}", history);
+
+        debug!("History: {:#?}", history);
         self.history_buffer.set_message_adjust_buffer(history);
         Ok(response.message.content)
     }
 
-    pub async fn summerize_chat(&self, topic_id: String) -> std::result::Result<String, anyhow::Error> {
+    pub async fn handle_tool(
+        &mut self,
+        username: &str,
+        message: &str,
+    ) -> std::result::Result<String, anyhow::Error> {
+        let mut history = self.history_buffer.get_history();
+        let response = self
+            .ollama
+            .send_chat_messages_with_history(
+                &mut history,
+                ChatMessageRequest::new(
+                    self.model_name.to_owned(),
+                    vec![
+                        ChatMessage::user(format!("{}: {}", username, message)),
+                        ],
+                )
+                .tools(self.tool_infos.clone()),
+            )
+            .await?;
+
+        if !response.message.tool_calls.is_empty() {
+            for call in response.message.tool_calls {
+                let args = call.function.arguments;
+                let name: String = call.function.name;
+                let rs = execute_tool(name.as_str(), args).await;
+                if rs.is_ok() {
+                    history.push(ChatMessage::tool(rs.unwrap()));
+                }
+            }
+            let final_response = self
+                .ollama
+                .send_chat_messages(ChatMessageRequest::new(
+                    self.model_name.to_owned(),
+                    history.clone(),
+                ))
+                .await?;
+            debug!("History: {:#?}", history);
+            return Ok(final_response.message.content);
+        }
+        Ok(response.message.content)
+    }
+
+    pub async fn summerize_chat(
+        &self,
+        topic_id: String,
+    ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
-            "Summarize only what happened in the chat with the channel_id: {} in the past in german language please. Please don't mention the channel_id in the summary.",
+            "Summarize what happened in the chat with the channel_id={} in german language please. Please don't mention the channel_id in the summary.",
             topic_id
         ));
         let mut history = self.history_buffer.get_chat_history_only();
@@ -164,8 +224,12 @@ impl Moderator {
 mod moderator_test {
 
     use mobot::init_logger;
+    use schemars::schema_for;
 
-    use crate::application;
+    use crate::application::{
+        self,
+        tools::{self, WEB_SEARCH, WEB_SEARCH_DESCRIPTION},
+    };
 
     use super::*;
 
@@ -299,5 +363,23 @@ mod moderator_test {
             debug!("{}", res);
             assert!(!res.contains("Cloud") && !res.contains("update"));
         }
+    }
+
+    #[tokio::test]
+    async fn should_test_tool_feature_successfully() {
+        init_logger();
+        let mut moderator = Moderator::new("Kate", &read_prompt_template()).add_tool(
+            WEB_SEARCH.to_string(),
+            WEB_SEARCH_DESCRIPTION.to_string(),
+            schema_for!(tools::WebSearchParams),
+        );
+        let response = moderator.handle_tool(
+                "Hey @Kate, Suche nach Trends in der Weltwirtschaft"
+            ).await;
+
+        let Ok(res) = response else {
+            panic!("Failed to get response2");
+        };
+        debug!("Response: {}", res);
     }
 }

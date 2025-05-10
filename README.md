@@ -37,6 +37,7 @@ export TELEGRAM_TOKEN = <MY_TELEGRAM_BOT_TOKEN>
 export OLLAMA_HOST_ADDR = "http:localhost"
 export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
+export BOT_NAME = "Kate"
 ```
 
 ## Define Bot Task

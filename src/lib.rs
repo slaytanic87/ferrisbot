@@ -6,5 +6,6 @@ pub use adapter::chat_summarize_action;
 pub use adapter::handle_chat_messages;
 pub use adapter::mute_user_action;
 pub use adapter::unmute_user_action;
+pub use adapter::web_search_action;
 pub use adapter::BotController;
 pub use application::Moderator;

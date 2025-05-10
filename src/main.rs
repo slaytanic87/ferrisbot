@@ -16,6 +16,7 @@ fn read_prompt_template() -> String {
 async fn main() {
     dotenvy::dotenv().ok();
     mobot::init_logger();
+    let bot_name = env::var("BOT_NAME").unwrap_or_else(|_| "Kate".to_string());
     let commands = vec![
         BotCommand {
             command: "greeting".into(),
@@ -27,7 +28,7 @@ async fn main() {
         },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
-    let controller = BotController::new("Kate", &read_prompt_template());
+    let controller = BotController::new(&bot_name, &read_prompt_template());
     let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
 
     router
@@ -59,6 +60,10 @@ async fn main() {
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("summary"))),
             ferrisbot::chat_summarize_action,
+        )
+        .add_route(
+            Route::Message(Matcher::Regex(String::from(format!("(?i)(@{bot_name})")))), 
+            ferrisbot::web_search_action,
         )
         .add_route(
             Route::Message(Matcher::Any),
