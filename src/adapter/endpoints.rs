@@ -95,7 +95,10 @@ pub async fn web_search_action(
     }
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
-    let reply_rs = bot_controller.moderator.handle_tool(&first_name, &message.unwrap()).await;
+    let reply_rs = bot_controller
+        .moderator
+        .chat_tool_directive(&first_name, &message.unwrap())
+        .await;
 
     if let Ok(reply_message) = reply_rs {
         if let Some(thread_id) = message_thread_id {
@@ -122,6 +125,7 @@ pub async fn handle_chat_messages(
     if message.is_none() {
         return Ok(Action::Done);
     }
+
     let channel_id: String = if let Some(thread_msg_id) = message_thread_id {
         thread_msg_id.to_string()
     } else {
@@ -137,7 +141,7 @@ pub async fn handle_chat_messages(
 
     let reply_rs = bot_controller
         .moderator
-        .chat_forum(channel_id, first_name, message.unwrap())
+        .chat_forum(&channel_id, &first_name, &message.unwrap())
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -212,7 +216,7 @@ pub async fn chat_summarize_action(
         event.update.chat_id()?.to_string()
     };
 
-    let summerize_message_rs = bot_controller.moderator.summerize_chat(channel_id).await;
+    let summerize_message_rs = bot_controller.moderator.summerize_chat(&channel_id).await;
     if let Ok(summary) = summerize_message_rs {
         if let Some(thread_id) = message_thread_id {
             let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary)
@@ -234,7 +238,7 @@ pub async fn mute_user_action(
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
 
     if reply_to_message_opt.is_none() {
-        debug!("No reply to message object has beend found");
+        debug!("No reply to message object has been found");
         return Ok(Action::Done);
     }
 

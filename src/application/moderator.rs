@@ -111,9 +111,9 @@ impl Moderator {
 
     pub async fn chat_forum(
         &mut self,
-        topic_id: String,
-        username: String,
-        message: String,
+        topic_id: &str,
+        username: &str,
+        message: &str,
     ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
             "Channel_id: {} \n\n {}: {}",
@@ -125,7 +125,7 @@ impl Moderator {
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
-                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message])
+                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]),
             )
             .await?;
 
@@ -134,21 +134,19 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn handle_tool(
+    pub async fn chat_tool_directive(
         &mut self,
         username: &str,
         message: &str,
     ) -> std::result::Result<String, anyhow::Error> {
-        let mut history = self.history_buffer.get_history();
+        let mut history = self.history_buffer.get_initial_prompt_messages();
         let response = self
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
                 ChatMessageRequest::new(
                     self.model_name.to_owned(),
-                    vec![
-                        ChatMessage::user(format!("{}: {}", username, message)),
-                        ],
+                    vec![ChatMessage::user(format!("{}: {}", username, message))],
                 )
                 .tools(self.tool_infos.clone()),
             )
@@ -178,10 +176,10 @@ impl Moderator {
 
     pub async fn summerize_chat(
         &self,
-        topic_id: String,
+        topic_id: &str,
     ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
-            "Summarize what happened in the chat with the channel_id={} in german language please. Please don't mention the channel_id in the summary.",
+            "Only summarize the conversations from the chat with the channel_id: {} in german language please. Please don't mention the channel_id in the summary.",
             topic_id
         ));
         let mut history = self.history_buffer.get_chat_history_only();
@@ -248,34 +246,22 @@ mod moderator_test {
         let mut moderator = Moderator::new("Kate", &read_prompt_template());
         init_logger();
         let rs1 = moderator
-            .chat_forum(
-                "56789".to_string(),
-                "Sabine".to_string(),
-                "Hallo Leute, gehts euch gut?".to_string(),
-            )
+            .chat_forum("56789", "Sabine", "Hallo Leute, gehts euch gut?")
             .await;
 
         let rs2 = moderator
-            .chat_forum(
-                "56789".to_string(),
-                "Steffen".to_string(),
-                "Sabine ist dumm :)".to_string(),
-            )
+            .chat_forum("56789", "Steffen", "Sabine ist dumm :)")
             .await;
 
         let rs3 = moderator
-            .chat_forum(
-                "56789".to_string(),
-                "Sabine".to_string(),
-                "Steffen du bist selber dumm!".to_string(),
-            )
+            .chat_forum("56789", "Sabine", "Steffen du bist selber dumm!")
             .await;
 
         let rs4 = moderator
             .chat_forum(
-                "56789".to_string(),
-                "Kevin".to_string(),
-                "Hallo Kate in welchen Channel sind wir gerade?".to_string(),
+                "56789",
+                "Kevin",
+                "Hallo Kate in welchen Channel sind wir gerade?",
             )
             .await;
         if let Ok(res) = rs1 {
@@ -300,61 +286,37 @@ mod moderator_test {
     async fn should_test_moderator_summerize_chat_successfully() {
         let mut moderator = Moderator::new("Kate", &read_prompt_template());
         init_logger();
-        let channel_id = "12345".to_string();
+        let channel_id = "12345";
         let _ = moderator
-            .chat_forum(
-                channel_id.clone(),
-                "Sabine".to_string(),
-                "Hallo Leute, gehts euch gut?".to_string(),
-            )
+            .chat_forum(channel_id, "Sabine", "Hallo Leute, gehts euch gut?")
+            .await;
+        let _ = moderator
+            .chat_forum(channel_id, "Kevin", "Jau alles bestens")
+            .await;
+        let _ = moderator
+            .chat_forum(channel_id, "Steffi", "Wo ist Steffen in letzter Zeit?")
+            .await;
+        let _ = moderator
+            .chat_forum(channel_id, "Sabine", "Keine Ahnung wo er steck")
             .await;
         let _ = moderator
             .chat_forum(
-                channel_id.clone(),
-                "Kevin".to_string(),
-                "Jau alles bestens".to_string(),
+                channel_id,
+                "Kevin",
+                "Der hat Urlaub gerade auf der Karibik hehe :)",
             )
             .await;
         let _ = moderator
-            .chat_forum(
-                channel_id.clone(),
-                "Steffi".to_string(),
-                "Wo ist Steffen in letzter Zeit?".to_string(),
-            )
+            .chat_forum(channel_id, "Sabine", "Schön da möchte ich auch mal hin")
+            .await;
+        let _ = moderator
+            .chat_forum("4321", "Conrad", "Was passiert gerade in der Cloud?")
             .await;
         let _ = moderator
             .chat_forum(
-                channel_id.clone(),
-                "Sabine".to_string(),
-                "Keine Ahnung wo er steck".to_string(),
-            )
-            .await;
-        let _ = moderator
-            .chat_forum(
-                channel_id.clone(),
-                "Kevin".to_string(),
-                "Der hat Urlaub gerade auf der Karibik hehe :)".to_string(),
-            )
-            .await;
-        let _ = moderator
-            .chat_forum(
-                channel_id.clone(),
-                "Sabine".to_string(),
-                "Schön da möchte ich auch mal hin".to_string(),
-            )
-            .await;
-        let _ = moderator
-            .chat_forum(
-                "4321".to_string(),
-                "Conrad".to_string(),
-                "Was passiert gerade in der Cloud?".to_string(),
-            )
-            .await;
-        let _ = moderator
-            .chat_forum(
-                "4321".to_string(),
-                "Morice".to_string(),
-                "Keine Ahnung, wahrscheinlich gab es dort einen update".to_string(),
+                "4321",
+                "Morice",
+                "Keine Ahnung, wahrscheinlich gab es dort einen update",
             )
             .await;
 
@@ -373,9 +335,9 @@ mod moderator_test {
             WEB_SEARCH_DESCRIPTION.to_string(),
             schema_for!(tools::WebSearchParams),
         );
-        let response = moderator.handle_tool(
-                "Hey @Kate, Suche nach Trends in der Weltwirtschaft"
-            ).await;
+        let response = moderator
+            .chat_tool_directive("Jan", "Hey @Kate, Suche nach Trends in der Weltwirtschaft")
+            .await;
 
         let Ok(res) = response else {
             panic!("Failed to get response2");

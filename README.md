@@ -30,6 +30,8 @@ mistral-nemo 12B
 ollama run mistral-nemo:12b
 ```
 
+**Remember: The models you choose must have tool support!**
+
 ## Setup Telegram token & parameters
 
 ```bash

@@ -62,7 +62,7 @@ async fn main() {
             ferrisbot::chat_summarize_action,
         )
         .add_route(
-            Route::Message(Matcher::Regex(String::from(format!("(?i)(@{bot_name})")))), 
+            Route::Message(Matcher::Regex(String::from("(?i)(#Directive)"))),
             ferrisbot::web_search_action,
         )
         .add_route(
