@@ -117,6 +117,7 @@ pub async fn handle_chat_messages(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let username_opt: Option<String> = event.update.from_user()?.clone().username;
+    let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
     let first_name: String = event.update.from_user()?.clone().first_name;
     let message: Option<String> = event.update.get_message()?.clone().text;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
@@ -126,10 +127,16 @@ pub async fn handle_chat_messages(
         return Ok(Action::Done);
     }
 
-    let channel_id: String = if let Some(thread_msg_id) = message_thread_id {
-        thread_msg_id.to_string()
+    let topic = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
+        reply_to_message
+        .get("forum_topic_created")
+        .unwrap()
+        .get("name")
+        .unwrap()
+        .as_str()
+        .unwrap()
     } else {
-        event.update.chat_id()?.to_string()
+        &event.update.get_message()?.clone().chat.title.unwrap()
     };
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
@@ -141,7 +148,7 @@ pub async fn handle_chat_messages(
 
     let reply_rs = bot_controller
         .moderator
-        .chat_forum(&channel_id, &first_name, &message.unwrap())
+        .chat_forum(topic, &first_name, &message.unwrap())
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -209,14 +216,21 @@ pub async fn chat_summarize_action(
 ) -> Result<Action, anyhow::Error> {
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+    let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
 
-    let channel_id: String = if let Some(thread_msg_id) = message_thread_id {
-        thread_msg_id.to_string()
+    let topic = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
+        reply_to_message
+        .get("forum_topic_created")
+        .unwrap()
+        .get("name")
+        .unwrap()
+        .as_str()
+        .unwrap()
     } else {
-        event.update.chat_id()?.to_string()
+        &event.update.get_message()?.clone().chat.title.unwrap()
     };
 
-    let summerize_message_rs = bot_controller.moderator.summerize_chat(&channel_id).await;
+    let summerize_message_rs = bot_controller.moderator.summerize_chat(topic).await;
     if let Ok(summary) = summerize_message_rs {
         if let Some(thread_id) = message_thread_id {
             let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary)

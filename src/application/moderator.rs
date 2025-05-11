@@ -116,7 +116,7 @@ impl Moderator {
         message: &str,
     ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
-            "Channel_id: {} \n\n {}: {}",
+            "Channel: {} \n\n {}: {}",
             topic_id, username, message
         ));
         let mut history = self.history_buffer.get_history();
@@ -176,11 +176,11 @@ impl Moderator {
 
     pub async fn summerize_chat(
         &self,
-        topic_id: &str,
+        topic: &str,
     ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
-            "Only summarize the conversations from the chat with the channel_id: {} in german language please. Please don't mention the channel_id in the summary.",
-            topic_id
+            "Only summarize the conversations from the channel: {} in german language please. Please don't mention the channel name in the summary.",
+            topic
         ));
         let mut history = self.history_buffer.get_chat_history_only();
         history.push(user_message);
