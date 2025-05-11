@@ -69,7 +69,7 @@ impl WebSearch {
                     .collect::<Vec<_>>()
                     .join("");
                 SearchResult {
-                    title: title,
+                    title,
                     content: snippet,
                 }
             })

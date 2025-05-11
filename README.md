@@ -16,6 +16,8 @@ Download and install Ollama
 
 ### setup LLM modell
 
+**examples:**
+
 Llama3.2
 
 ```bash
@@ -30,31 +32,46 @@ mistral-nemo 12B
 ollama run mistral-nemo:12b
 ```
 
-**Remember: The models you choose must have tool support!**
+**Remember: The models must have _tool_ support and if it works well or not depends on the model of your choice!**
 
 ## Setup Telegram token & parameters
+
+**examples:**
 
 ```bash
 export TELEGRAM_TOKEN = <MY_TELEGRAM_BOT_TOKEN>
 export OLLAMA_HOST_ADDR = "http:localhost"
 export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
-export BOT_NAME = "Kate"
+export BOT_NAME = "Eve"
+export BOT_USERNAME = "ModeratorBot"
 ```
 
 ## Define Bot Task
 
 create or adjust the bot role definition as enumerations (natural language) in the prompt template role_definition.md
 
-### Variables placeholder
+### Template Placeholder
 
 Following placeholders must be used in your role definition prompt template
 
--**Botname**: {name} - replace with the name of your bot which was given
+#### Botname 
 
--**No action flag**: {NO_ACTION} - This internal flag is important when you define a situation in the template where the bot should not reponse to a message
+replace with the name of your bot which was given:
+
+```
+{name}
+````
+
+#### No action flag
+
+This internal flag is important when you define a situation in the template where the bot should not response to a message:
+
+```
+ {NO_ACTION}
+```
 
 #### Notes
 
-- For the Telegram api framework, I'm using my fork version of [mobot](https://github.com/slaytanic87/mobot), where have implemented the missing capabilities: Restriction of chat members, forum message support and get adminitrator member list.
+- For the Telegram api framework, I'm using my own fork version of [mobot](https://github.com/slaytanic87/mobot), where the missing telegram api capabilities are implemented: Restriction of chat members, forum message support and get administrator member list.
 When the features are fully tested and the time allows me, I will create a PR to contribute back if they want.

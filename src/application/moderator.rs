@@ -12,7 +12,7 @@ use std::{collections::VecDeque, vec};
 
 use crate::application::tools::execute_tool;
 
-const MAX_HISTORY_BUFFER_SIZE: usize = 50;
+const MAX_HISTORY_BUFFER_SIZE: usize = 100;
 pub const NO_ACTION: &str = "NO ACTION";
 
 #[derive(Clone, Default)]
@@ -82,7 +82,7 @@ impl Moderator {
                 .parse()
                 .unwrap(),
         );
-        let model_name = env::var("LLM_MODEL").unwrap_or(String::from("llama3.2:latest"));
+        let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         let messages = vec![ChatMessage::system(task_template)];
         let history_buffer = HistoryBuffer::new(messages);

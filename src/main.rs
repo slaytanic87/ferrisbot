@@ -17,6 +17,7 @@ async fn main() {
     dotenvy::dotenv().ok();
     mobot::init_logger();
     let bot_name = env::var("BOT_NAME").unwrap_or_else(|_| "Kate".to_string());
+    let bot_username = env::var("BOT_USERNAME").unwrap_or_else(|_| "FerrisModBot".to_string());
     let commands = vec![
         BotCommand {
             command: "greeting".into(),
@@ -62,7 +63,9 @@ async fn main() {
             ferrisbot::chat_summarize_action,
         )
         .add_route(
-            Route::Message(Matcher::Regex(String::from("(?i)(#Directive)"))),
+            Route::Message(Matcher::Regex(String::from(
+                format!("(?i)(@{bot_name}|@{bot_username})"),
+            ))),
             ferrisbot::web_search_action,
         )
         .add_route(
