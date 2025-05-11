@@ -12,7 +12,7 @@ use std::{collections::VecDeque, vec};
 
 use crate::application::tools::execute_tool;
 
-const MAX_HISTORY_BUFFER_SIZE: usize = 100;
+const MAX_HISTORY_BUFFER_SIZE: usize = 80;
 pub const NO_ACTION: &str = "NO ACTION";
 
 #[derive(Clone, Default)]
