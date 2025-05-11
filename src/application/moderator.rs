@@ -196,7 +196,7 @@ impl Moderator {
     pub async fn introduce_moderator(&self) -> std::result::Result<String, anyhow::Error> {
         let mut history = self.history_buffer.get_initial_prompt_messages();
         history.push(ChatMessage::user(
-            "Introduce yourself in the group in german".to_string(),
+            "Introduce yourself and tell the members what are the rules in this group in german".to_string(),
         ));
 
         debug!("History: {:#?}", history);

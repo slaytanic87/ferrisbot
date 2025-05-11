@@ -43,6 +43,10 @@ async fn main() {
 
     router
         .add_route(
+            Route::Message(Matcher::BotCommand(String::from("init"))),
+            ferrisbot::init_bot,
+        )
+        .add_route(
             Route::Message(Matcher::BotCommand(String::from("admin"))),
             ferrisbot::add_admin_action,
         )

@@ -45,14 +45,12 @@ impl BotController {
     }
 }
 
-pub async fn bot_greeting_action(
+pub async  fn init_bot(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
     let chat_type = event.update.get_message()?.clone().chat.chat_type;
-    let message_thread_id_opt: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-
     if chat_type != "private" {
         let chat_id = event.update.get_message()?.chat.id.to_string();
         let admin_list = event
@@ -68,6 +66,16 @@ pub async fn bot_greeting_action(
             }
         });
     }
+    Ok(Action::Done)
+}
+
+pub async fn bot_greeting_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let bot_controller = state.get().write().await;
+    let message_thread_id_opt: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+
     let reponse_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = reponse_rs {
         if let Some(message_thread_id) = message_thread_id_opt {
