@@ -29,7 +29,7 @@ async fn main() {
         },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
-    let controller = BotController::new(&bot_name, &read_prompt_template());
+    let controller = BotController::new(&bot_name, &bot_username, &read_prompt_template());
     let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
 
     router
@@ -45,10 +45,6 @@ async fn main() {
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("init"))),
             ferrisbot::init_bot,
-        )
-        .add_route(
-            Route::Message(Matcher::BotCommand(String::from("admin"))),
-            ferrisbot::add_admin_action,
         )
         .add_route(
             Route::Message(Matcher::BotCommand(String::from("mute"))),
@@ -67,9 +63,7 @@ async fn main() {
             ferrisbot::chat_summarize_action,
         )
         .add_route(
-            Route::Message(Matcher::Regex(String::from(
-                format!("(?i)(@{bot_name}|@{bot_username})"),
-            ))),
+            Route::Message(Matcher::Regex(format!("(?i)(@{bot_name}|@{bot_username})"))),
             ferrisbot::web_search_action,
         )
         .add_route(

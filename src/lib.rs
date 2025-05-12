@@ -1,6 +1,5 @@
 mod adapter;
 mod application;
-pub use adapter::add_admin_action;
 pub use adapter::bot_greeting_action;
 pub use adapter::chat_summarize_action;
 pub use adapter::handle_chat_messages;

@@ -13,26 +13,18 @@ use mobot::{
     },
     Action, BotState, Event, State,
 };
-use regex::Regex;
 use schemars::schema_for;
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-fn extract_username(value: &str) -> Vec<&str> {
-    let separator = Regex::new(r"@.+");
-    match separator {
-        Ok(sep) => sep.split(value).collect(),
-        Err(_) => Vec::new(),
-    }
-}
 
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
     pub moderator: Moderator,
     pub name: String,
+    bot_username: String
 }
 
 impl BotController {
-    pub fn new(name: &str, task_template: &str) -> Self {
+    pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
         let moderator = Moderator::new(name, task_template).add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
@@ -41,6 +33,7 @@ impl BotController {
         Self {
             moderator,
             name: name.into(),
+            bot_username: bot_username.into(),
         }
     }
 }
@@ -103,9 +96,11 @@ pub async fn web_search_action(
     }
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
+    let bot_name = bot_controller.name.clone();
+    let bot_username = bot_controller.bot_username.clone();
     let reply_rs = bot_controller
         .moderator
-        .chat_tool_directive(&first_name, &message.unwrap())
+        .chat_tool_directive(&first_name, &message.unwrap().replace(format!("@{bot_username}").as_str(), bot_name.as_str()))
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -148,6 +143,8 @@ pub async fn handle_chat_messages(
     };
 
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
+    let bot_name = bot_controller.name.clone();
+    let bot_username = bot_controller.bot_username.clone();
     let username = username_opt.unwrap_or("unknown".to_string());
     if bot_controller.moderator.is_administrator(username.as_str()) {
         debug!("Ignoring admin user {}", username);
@@ -156,7 +153,7 @@ pub async fn handle_chat_messages(
 
     let reply_rs = bot_controller
         .moderator
-        .chat_forum(topic, &first_name, &message.unwrap())
+        .chat_forum(topic, &first_name, &message.unwrap().replace(format!("@{bot_username}").as_str(), bot_name.as_str()))
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -172,50 +169,6 @@ pub async fn handle_chat_messages(
         return Ok(Action::ReplyText(reply_message));
     }
     Ok(Action::Done)
-}
-
-pub async fn add_admin_action(
-    event: Event,
-    state: State<BotController>,
-) -> Result<Action, anyhow::Error> {
-    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
-    let user_opt: Option<String> = event.update.from_user()?.clone().username;
-    let is_forum: Option<bool> = event.update.get_message()?.clone().chat.is_forum;
-    let message: Option<String> = event.update.get_message()?.clone().text;
-
-    if message.is_none() || user_opt.is_none() {
-        return Ok(Action::ReplyText("User or Message not found".into()));
-    }
-
-    if is_forum.is_some() && is_forum.unwrap() {
-        return Ok(Action::ReplyText(
-            "Adding user to admin list is not allowed in topics".into(),
-        ));
-    }
-
-    if !bot_controller
-        .moderator
-        .is_administrator(user_opt.unwrap_or("unknown".to_string()).as_str())
-    {
-        return Ok(Action::ReplyText(
-            "You don't have permission to nominate users".into(),
-        ));
-    }
-
-    let message = message.unwrap();
-    let extracted_usernames: Vec<&str> = extract_username(message.as_str());
-    if extracted_usernames.is_empty() {
-        return Ok(Action::ReplyText("Missing usernames".into()));
-    }
-    debug!("usernames: {:?}", extracted_usernames);
-
-    for user in extracted_usernames.iter() {
-        user.to_string().remove(0);
-        bot_controller
-            .moderator
-            .register_administrator(user.to_string());
-    }
-    Ok(Action::ReplyText("Added to admin list".into()))
 }
 
 pub async fn chat_summarize_action(

@@ -157,8 +157,8 @@ impl Moderator {
                 let args = call.function.arguments;
                 let name: String = call.function.name;
                 let rs = execute_tool(name.as_str(), args).await;
-                if rs.is_ok() {
-                    history.push(ChatMessage::tool(rs.unwrap()));
+                if let Ok(tool_rs) = rs {
+                    history.push(ChatMessage::tool(tool_rs));
                 }
             }
             let final_response = self
