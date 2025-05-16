@@ -1,7 +1,9 @@
 use crate::{
     application::{
         self,
-        tools::{self, WEB_SEARCH, WEB_SEARCH_DESCRIPTION},
+        tools::{
+            self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION
+        },
     },
     Moderator,
 };
@@ -20,16 +22,27 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 pub struct BotController {
     pub moderator: Moderator,
     pub name: String,
-    bot_username: String
+    bot_username: String,
 }
 
 impl BotController {
     pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
-        let moderator = Moderator::new(name, task_template).add_tool(
-            WEB_SEARCH.to_string(),
-            WEB_SEARCH_DESCRIPTION.to_string(),
-            schema_for!(tools::WebSearchParams),
-        );
+        let moderator = Moderator::new(name, task_template)
+            .add_tool(
+                WEB_SEARCH.to_string(),
+                WEB_SEARCH_DESCRIPTION.to_string(),
+                schema_for!(tools::WebSearchParams),
+            )
+            .add_tool(
+                KICK_USER_WITHOUTBAN.to_string(),
+                KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
+                schema_for!(tools::KickUserParams),
+            )
+            .add_tool(
+                MUTE_MEMBER.to_string(),
+                MUTE_MEMBER_DESCRIPTION.to_string(),
+                schema_for!(tools::MuteMemberParams),
+            );
         Self {
             moderator,
             name: name.into(),
@@ -38,10 +51,7 @@ impl BotController {
     }
 }
 
-pub async  fn init_bot(
-    event: Event,
-    state: State<BotController>,
-) -> Result<Action, anyhow::Error> {
+pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
     let chat_type = event.update.get_message()?.clone().chat.chat_type;
     if chat_type != "private" {
@@ -82,7 +92,7 @@ pub async fn bot_greeting_action(
     Ok(Action::Done)
 }
 
-pub async fn web_search_action(
+pub async fn directive_tool_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
@@ -100,7 +110,12 @@ pub async fn web_search_action(
     let bot_username = bot_controller.bot_username.clone();
     let reply_rs = bot_controller
         .moderator
-        .chat_tool_directive(&first_name, &message.unwrap().replace(format!("@{bot_username}").as_str(), bot_name.as_str()))
+        .chat_tool_directive(
+            &first_name,
+            &message
+                .unwrap()
+                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()),
+        )
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -132,12 +147,12 @@ pub async fn handle_chat_messages(
 
     let topic = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
         reply_to_message
-        .get("forum_topic_created")
-        .unwrap()
-        .get("name")
-        .unwrap()
-        .as_str()
-        .unwrap()
+            .get("forum_topic_created")
+            .unwrap()
+            .get("name")
+            .unwrap()
+            .as_str()
+            .unwrap()
     } else {
         &event.update.get_message()?.clone().chat.title.unwrap()
     };
@@ -153,7 +168,13 @@ pub async fn handle_chat_messages(
 
     let reply_rs = bot_controller
         .moderator
-        .chat_forum(topic, &first_name, &message.unwrap().replace(format!("@{bot_username}").as_str(), bot_name.as_str()))
+        .chat_forum(
+            topic,
+            &first_name,
+            &message
+                .unwrap()
+                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()),
+        )
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -181,12 +202,12 @@ pub async fn chat_summarize_action(
 
     let topic = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
         reply_to_message
-        .get("forum_topic_created")
-        .unwrap()
-        .get("name")
-        .unwrap()
-        .as_str()
-        .unwrap()
+            .get("forum_topic_created")
+            .unwrap()
+            .get("name")
+            .unwrap()
+            .as_str()
+            .unwrap()
     } else {
         &event.update.get_message()?.clone().chat.title.unwrap()
     };

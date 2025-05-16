@@ -174,10 +174,7 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn summerize_chat(
-        &self,
-        topic: &str,
-    ) -> std::result::Result<String, anyhow::Error> {
+    pub async fn summerize_chat(&self, topic: &str) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
             "Only summarize the conversations from the channel: {} in german language please. Please don't mention the channel name in the summary.",
             topic
@@ -196,7 +193,8 @@ impl Moderator {
     pub async fn introduce_moderator(&self) -> std::result::Result<String, anyhow::Error> {
         let mut history = self.history_buffer.get_initial_prompt_messages();
         history.push(ChatMessage::user(
-            "Introduce yourself and tell the members what are the rules in this group in german".to_string(),
+            "Introduce yourself and tell the members what are the rules in this group in german"
+                .to_string(),
         ));
 
         debug!("History: {:#?}", history);

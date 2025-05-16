@@ -64,7 +64,7 @@ async fn main() {
         )
         .add_route(
             Route::Message(Matcher::Regex(format!("(?i)(@{bot_name}|@{bot_username})"))),
-            ferrisbot::web_search_action,
+            ferrisbot::directive_tool_action,
         )
         .add_route(
             Route::Message(Matcher::Any),
