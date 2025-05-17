@@ -26,7 +26,7 @@ async fn main() {
         BotCommand {
             command: "summary".into(),
             description: "Gib eine Zusammenfassung der letzten Chatverlauf".into(),
-        },
+        }
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
     let controller = BotController::new(&bot_name, &bot_username, &read_prompt_template());
@@ -62,8 +62,9 @@ async fn main() {
             Route::Message(Matcher::BotCommand(String::from("summary"))),
             ferrisbot::chat_summarize_action,
         )
+        // Matcher::Regex(format!("(?i)(@{bot_name}|@{bot_username})")
         .add_route(
-            Route::Message(Matcher::Regex(format!("(?i)(@{bot_name}|@{bot_username})"))),
+            Route::Message(Matcher::BotCommand(String::from("action"))),
             ferrisbot::directive_tool_action,
         )
         .add_route(

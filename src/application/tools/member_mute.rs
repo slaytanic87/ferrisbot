@@ -47,9 +47,10 @@ impl MuteMember {
         let parameters = serde_json::from_value::<MuteMemberParams>(params)?;
         let user_id_be_muted = parameters.user_id;
         let chat_id = parameters.chat_id;
-        let mute_time_seconds: i64 = parameters.mute_time + SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let mute_time_seconds: i64 = parameters.mute_time
+            + SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs() as i64;
         let restrict_chat_req = RestrictChatMemberRequest {
             chat_id: chat_id.to_string(),
             user_id: user_id_be_muted,
@@ -72,7 +73,10 @@ impl MuteMember {
             use_independent_chat_permissions: Some(false),
             until_date: Some(mute_time_seconds),
         };
-        let is_successful_muted = self.telegram_api.restrict_chat_member(&restrict_chat_req).await?;
+        let is_successful_muted = self
+            .telegram_api
+            .restrict_chat_member(&restrict_chat_req)
+            .await?;
         if !is_successful_muted {
             return Ok("Failed to mute the member".into());
         }

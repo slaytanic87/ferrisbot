@@ -1,10 +1,8 @@
 use log::debug;
 use ollama_rs::{
     generation::{
-        chat::{request::ChatMessageRequest, ChatMessage},
-        tools::{ToolFunctionInfo, ToolInfo, ToolType},
-    },
-    Ollama,
+        chat::{request::ChatMessageRequest, ChatMessage}, parameters::FormatType, tools::{ToolFunctionInfo, ToolInfo, ToolType}
+    }, Ollama
 };
 use schemars::schema::RootSchema;
 use std::env;
@@ -12,8 +10,8 @@ use std::{collections::VecDeque, vec};
 
 use crate::application::tools::execute_tool;
 
-const MAX_HISTORY_BUFFER_SIZE: usize = 80;
-pub const NO_ACTION: &str = "NO ACTION";
+const MAX_HISTORY_BUFFER_SIZE: usize = 60;
+pub const NO_ACTION: &str = "NO_ACTION";
 
 #[derive(Clone, Default)]
 pub struct HistoryBuffer {
@@ -70,10 +68,11 @@ pub struct Moderator {
 }
 
 impl Moderator {
-    pub fn new(name: &str, task_template: &str) -> Self {
-        let task_template = task_template
+    pub fn new(name: &str, prompt_template: &str) -> Self {
+        let no_action_message: &str = &format!("{{ \"moderator\": \"{name}\", \"message\": \"[{NO_ACTION}]\" }}");
+        let task_template: String = prompt_template
             .replace("{name}", name)
-            .replace("{NO_ACTION}", NO_ACTION);
+            .replace("{NO_ACTION}", no_action_message);
 
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
@@ -109,23 +108,15 @@ impl Moderator {
         self
     }
 
-    pub async fn chat_forum(
-        &mut self,
-        topic_id: &str,
-        username: &str,
-        message: &str,
-    ) -> std::result::Result<String, anyhow::Error> {
-        let user_message = ChatMessage::user(format!(
-            "Channel: {} \n\n {}: {}",
-            topic_id, username, message
-        ));
+    pub async fn chat_forum_without_tool(&mut self, input: &str) -> std::result::Result<String, anyhow::Error> {
+        let user_message = ChatMessage::user(input.to_string());
         let mut history = self.history_buffer.get_history();
         debug!("History before chat: {:#?}", history);
         let response = self
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
-                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]),
+                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]).format(FormatType::Json),
             )
             .await?;
 
@@ -134,23 +125,24 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn chat_tool_directive(
+    pub async fn chat_forum_with_tool(
         &mut self,
-        username: &str,
-        message: &str,
+        input: &str,
     ) -> std::result::Result<String, anyhow::Error> {
-        let mut history = self.history_buffer.get_initial_prompt_messages();
+        let mut history: Vec<ChatMessage> = Vec::new();
+
         let response = self
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
                 ChatMessageRequest::new(
                     self.model_name.to_owned(),
-                    vec![ChatMessage::user(format!("{}: {}", username, message))],
+                    vec![ChatMessage::user(input.to_string())],
                 )
                 .tools(self.tool_infos.clone()),
             )
             .await?;
+        debug!("History: {:#?}", history);
 
         if !response.message.tool_calls.is_empty() {
             for call in response.message.tool_calls {
@@ -168,7 +160,7 @@ impl Moderator {
                     history.clone(),
                 ))
                 .await?;
-            debug!("History: {:#?}", history);
+            debug!("Response from tool - History: {:#?}", history);
             return Ok(final_response.message.content);
         }
         Ok(response.message.content)
@@ -201,7 +193,7 @@ impl Moderator {
 
         let response = self
             .ollama
-            .send_chat_messages(ChatMessageRequest::new(self.model_name.to_owned(), history))
+            .send_chat_messages(ChatMessageRequest::new(self.model_name.to_owned(), history).format(FormatType::Json))
             .await?;
         Ok(response.message.content)
     }
@@ -241,30 +233,31 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template());
+        let mut moderator = Moderator::new("Kate", &read_prompt_template()).add_tool(
+            WEB_SEARCH.to_string(),
+            WEB_SEARCH_DESCRIPTION.to_string(),
+            schema_for!(tools::WebSearchParams),
+        );
         init_logger();
         let rs1 = moderator
-            .chat_forum("56789", "Sabine", "Hallo Leute, gehts euch gut?")
+            .chat_forum_without_tool(r#"{ "channel": "56789", "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
             .await;
-
         let rs2 = moderator
-            .chat_forum("56789", "Steffen", "Sabine ist dumm :)")
+            .chat_forum_without_tool(
+                r#"{ "channel": "56789", "user": "Steffen", "message": "Sabine ist dumm :)" }"#,
+            )
             .await;
-
         let rs3 = moderator
-            .chat_forum("56789", "Sabine", "Steffen du bist selber dumm!")
+            .chat_forum_without_tool(r#"{ "channel": "56789", "user": "Sabine", "message": "Steffen du bist selber dumm!" }"#)
             .await;
 
         let rs4 = moderator
-            .chat_forum(
-                "56789",
-                "Kevin",
-                "Hallo Kate in welchen Channel sind wir gerade?",
-            )
+            .chat_forum_without_tool(r#"{ "channel": "56789", "user": "Kevin", "message": "Hallo Kate in welchen Channel sind wir gerade?" }"#)
             .await;
+
         if let Ok(res) = rs1 {
             debug!("{}", res);
-            assert!(res.contains(application::NO_ACTION));
+            assert_ne!(res, application::NO_ACTION);
         }
         if let Ok(res) = rs2 {
             debug!("{}", res);
@@ -282,40 +275,39 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_summerize_chat_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template());
+        let mut moderator = Moderator::new("Kate", &read_prompt_template()).add_tool(
+            WEB_SEARCH.to_string(),
+            WEB_SEARCH_DESCRIPTION.to_string(),
+            schema_for!(tools::WebSearchParams),
+        );
         init_logger();
+
         let channel_id = "12345";
         let _ = moderator
-            .chat_forum(channel_id, "Sabine", "Hallo Leute, gehts euch gut?")
+            .chat_forum_without_tool(r#"{ "channel": "12345", "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
             .await;
         let _ = moderator
-            .chat_forum(channel_id, "Kevin", "Jau alles bestens")
-            .await;
-        let _ = moderator
-            .chat_forum(channel_id, "Steffi", "Wo ist Steffen in letzter Zeit?")
-            .await;
-        let _ = moderator
-            .chat_forum(channel_id, "Sabine", "Keine Ahnung wo er steck")
-            .await;
-        let _ = moderator
-            .chat_forum(
-                channel_id,
-                "Kevin",
-                "Der hat Urlaub gerade auf der Karibik hehe :)",
+            .chat_forum_without_tool(
+                r#"{ "channel": "12345", "user": "Kevin", "message": "Jau alles bestens" }"#,
             )
             .await;
         let _ = moderator
-            .chat_forum(channel_id, "Sabine", "Schön da möchte ich auch mal hin")
+            .chat_forum_without_tool(r#"{ "channel": "12345", "user": "Steffi", "message": "Wo ist Steffen in letzter Zeit?" }"#)
             .await;
         let _ = moderator
-            .chat_forum("4321", "Conrad", "Was passiert gerade in der Cloud?")
+            .chat_forum_without_tool(r#"{ "channel": "12345", "user": "Sabine", "message": "Keine Ahnung wo er steck" }"#)
             .await;
         let _ = moderator
-            .chat_forum(
-                "4321",
-                "Morice",
-                "Keine Ahnung, wahrscheinlich gab es dort einen update",
-            )
+            .chat_forum_without_tool(r#"{ "channel": "12345", "user": "Kevin", "message": "Der hat Urlaub gerade auf der Karibik hehe :)" }"#)
+            .await;
+        let _ = moderator
+            .chat_forum_without_tool(r#"{ "channel": "12345", "user": "Sabine", "message": "Schön da möchte ich auch mal hin" }"#)
+            .await;
+        let _ = moderator
+            .chat_forum_without_tool(r#"{ "channel": "4321", "user": "Conrad", "message": "Was passiert gerade in der Cloud?" }"#)
+            .await;
+        let _ = moderator
+            .chat_forum_without_tool(r#"{ "channel": "4321", "user": "Morice", "message": "Keine Ahnung, wahrscheinlich gab es dort einen update" }"#)
             .await;
 
         let rs = moderator.summerize_chat(channel_id).await;
@@ -334,7 +326,7 @@ mod moderator_test {
             schema_for!(tools::WebSearchParams),
         );
         let response = moderator
-            .chat_tool_directive("Jan", "Hey @Kate, Suche nach Trends in der Weltwirtschaft")
+            .chat_forum_with_tool(r#"Hey @Kate, Suche mir nach den aktuellen Trends in der Weltwirtschaft"#)
             .await;
 
         let Ok(res) = response else {

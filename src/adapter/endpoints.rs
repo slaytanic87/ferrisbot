@@ -2,7 +2,8 @@ use crate::{
     application::{
         self,
         tools::{
-            self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION
+            self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
+            MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
         },
     },
     Moderator,
@@ -16,7 +17,21 @@ use mobot::{
     Action, BotState, Event, State,
 };
 use schemars::schema_for;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct MessageInput {
+    pub channel: String,
+    pub user: String,
+    pub message: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ModeratorFeedback {
+    pub moderator: String,
+    pub message: String,
+}
 
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
@@ -76,18 +91,25 @@ pub async fn bot_greeting_action(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
+    let username_opt: Option<String> = event.update.from_user()?.clone().username;
     let bot_controller = state.get().write().await;
     let message_thread_id_opt: Option<i64> = event.update.get_message()?.clone().message_thread_id;
 
+    if !bot_controller.moderator.is_administrator(username_opt.unwrap().as_str()) {
+        return Ok(Action::Done);
+    }
+
     let reponse_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = reponse_rs {
+        let moderator_feedback: ModeratorFeedback = serde_json::from_str(&response)?;
         if let Some(message_thread_id) = message_thread_id_opt {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, response)
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, moderator_feedback.message)
                 .with_message_thread_id(message_thread_id);
+
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
-        return Ok(Action::ReplyText(response));
+        return Ok(Action::ReplyText(moderator_feedback.message));
     }
     Ok(Action::Done)
 }
@@ -98,7 +120,6 @@ pub async fn directive_tool_action(
 ) -> Result<Action, anyhow::Error> {
     let message: Option<String> = event.update.get_message()?.clone().text;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-    let first_name: String = event.update.from_user()?.clone().first_name;
 
     // Only text message is supported
     if message.is_none() {
@@ -108,14 +129,12 @@ pub async fn directive_tool_action(
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
     let bot_name = bot_controller.name.clone();
     let bot_username = bot_controller.bot_username.clone();
+
     let reply_rs = bot_controller
         .moderator
-        .chat_tool_directive(
-            &first_name,
-            &message
+        .chat_forum_with_tool(&message
                 .unwrap()
-                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()),
-        )
+                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()))
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -165,24 +184,27 @@ pub async fn handle_chat_messages(
         debug!("Ignoring admin user {}", username);
         return Ok(Action::Done);
     }
-
+    let text_message = &message
+        .unwrap()
+        .replace(format!("@{bot_username}").as_str(), bot_name.as_str());
+    let input = MessageInput {
+        channel: topic.to_string(),
+        user: first_name,
+        message: text_message.to_string(),
+    };
+    let input_json_str = serde_json::to_string(&input)?;
     let reply_rs = bot_controller
         .moderator
-        .chat_forum(
-            topic,
-            &first_name,
-            &message
-                .unwrap()
-                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()),
-        )
+        .chat_forum_without_tool(input_json_str.as_str())
         .await;
 
     if let Ok(reply_message) = reply_rs {
-        if reply_message.contains(application::NO_ACTION) {
+        let message_str: ModeratorFeedback = serde_json::from_str(&reply_message)?;
+        if message_str.message.contains(application::NO_ACTION) {
             return Ok(Action::Done);
         }
         if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, reply_message)
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str.message)
                 .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
