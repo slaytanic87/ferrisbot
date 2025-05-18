@@ -59,15 +59,15 @@ Following placeholders must be used in your role definition prompt template
 
 replace with the name of your bot which was given:
 
-```
+```bash
 {name}
-````
+```
 
 #### No action flag
 
 This internal flag is important when you define a situation in the template where the bot should not response to a message:
 
-```
+```bash
  {NO_ACTION}
 ```
 
@@ -89,5 +89,5 @@ cargo build
 
 ### Notes
 
-- For the Telegram api framework, I'm using my own fork version of [mobot](https://github.com/slaytanic87/mobot), where the missing telegram api capabilities are implemented: Restriction of chat members, forum message support and get administrator member list.
+- For the Telegram api framework, I'm using my own fork version of [mobot](https://github.com/slaytanic87/mobot), where the missing telegram api capabilities are implemented: Restriction of chat members, forum message support, retrieve chat full information, ban/unban users and get administrator member list.
 When the features are fully tested and the time allows me, I will create a PR to contribute back if they want.
