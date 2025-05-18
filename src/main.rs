@@ -26,7 +26,7 @@ async fn main() {
         BotCommand {
             command: "summary".into(),
             description: "Gib eine Zusammenfassung der letzten Chatverlauf".into(),
-        }
+        },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
     let controller = BotController::new(&bot_name, &bot_username, &read_prompt_template());

@@ -5,6 +5,7 @@ use crate::{
             self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
             MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
         },
+        MessageInput, ModeratorFeedback,
     },
     Moderator,
 };
@@ -17,21 +18,7 @@ use mobot::{
     Action, BotState, Event, State,
 };
 use schemars::schema_for;
-use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MessageInput {
-    pub channel: String,
-    pub user: String,
-    pub message: String,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ModeratorFeedback {
-    pub moderator: String,
-    pub message: String,
-}
 
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
@@ -95,7 +82,10 @@ pub async fn bot_greeting_action(
     let bot_controller = state.get().write().await;
     let message_thread_id_opt: Option<i64> = event.update.get_message()?.clone().message_thread_id;
 
-    if !bot_controller.moderator.is_administrator(username_opt.unwrap().as_str()) {
+    if !bot_controller
+        .moderator
+        .is_administrator(username_opt.unwrap().as_str())
+    {
         return Ok(Action::Done);
     }
 
@@ -103,8 +93,9 @@ pub async fn bot_greeting_action(
     if let Ok(response) = reponse_rs {
         let moderator_feedback: ModeratorFeedback = serde_json::from_str(&response)?;
         if let Some(message_thread_id) = message_thread_id_opt {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, moderator_feedback.message)
-                .with_message_thread_id(message_thread_id);
+            let message_re =
+                &SendMessageRequest::new(event.update.chat_id()?, moderator_feedback.message)
+                    .with_message_thread_id(message_thread_id);
 
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
@@ -132,9 +123,11 @@ pub async fn directive_tool_action(
 
     let reply_rs = bot_controller
         .moderator
-        .chat_forum_with_tool(&message
+        .chat_forum_with_tool(
+            &message
                 .unwrap()
-                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()))
+                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()),
+        )
         .await;
 
     if let Ok(reply_message) = reply_rs {

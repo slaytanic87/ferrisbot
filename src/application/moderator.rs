@@ -1,14 +1,18 @@
 use log::debug;
 use ollama_rs::{
     generation::{
-        chat::{request::ChatMessageRequest, ChatMessage}, parameters::FormatType, tools::{ToolFunctionInfo, ToolInfo, ToolType}
-    }, Ollama
+        chat::{request::ChatMessageRequest, ChatMessage},
+        parameters::FormatType,
+        tools::{ToolFunctionInfo, ToolInfo, ToolType},
+    },
+    Ollama,
 };
 use schemars::schema::RootSchema;
 use std::env;
 use std::{collections::VecDeque, vec};
 
 use crate::application::tools::execute_tool;
+use super::{MessageInput, ModeratorFeedback};
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 60;
 pub const NO_ACTION: &str = "NO_ACTION";
@@ -67,13 +71,39 @@ pub struct Moderator {
     tool_infos: Vec<ToolInfo>,
 }
 
+fn assemble_prompt_template(name: &str, prompt_template: &str) -> String {
+    let input_message_json = serde_json::to_string(&MessageInput {
+        channel: String::from("<Channelname>"),
+        user: String::from("<Name of the member>"),
+        message: String::from("<Text message>"),
+    })
+    .unwrap();
+    let output_message_json = serde_json::to_string(&ModeratorFeedback {
+        moderator: String::from("<Name of the moderator>"),
+        message: String::from("<Moderator message>"),
+    })
+    .unwrap();
+
+    let no_action_message = serde_json::to_string(&ModeratorFeedback {
+        moderator: name.to_string(),
+        message: String::from(format!("[{NO_ACTION}]")),
+    });
+
+    let mut task_template: String = prompt_template
+        .replace("{name}", name)
+        .replace("{NO_ACTION}", no_action_message.unwrap().as_str());
+
+    task_template.push_str("Input format as valid JSON: \n\n");
+    task_template.push_str(&input_message_json);
+    task_template.push_str("\n\n");
+    task_template.push_str("Output format as valid JSON: \n\n");
+    task_template.push_str(&output_message_json);
+    task_template.push_str("\n\n");
+    return task_template;
+}
+
 impl Moderator {
     pub fn new(name: &str, prompt_template: &str) -> Self {
-        let no_action_message: &str = &format!("{{ \"moderator\": \"{name}\", \"message\": \"[{NO_ACTION}]\" }}");
-        let task_template: String = prompt_template
-            .replace("{name}", name)
-            .replace("{NO_ACTION}", no_action_message);
-
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
             env::var("OLLAMA_PORT")
@@ -83,7 +113,10 @@ impl Moderator {
         );
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
-        let messages = vec![ChatMessage::system(task_template)];
+        let messages = vec![ChatMessage::system(assemble_prompt_template(
+            name,
+            prompt_template,
+        ))];
         let history_buffer = HistoryBuffer::new(messages);
 
         Self {
@@ -108,15 +141,19 @@ impl Moderator {
         self
     }
 
-    pub async fn chat_forum_without_tool(&mut self, input: &str) -> std::result::Result<String, anyhow::Error> {
-        let user_message = ChatMessage::user(input.to_string());
+    pub async fn chat_forum_without_tool(
+        &mut self,
+        input_json: &str,
+    ) -> std::result::Result<String, anyhow::Error> {
+        let user_message = ChatMessage::user(input_json.to_string());
         let mut history = self.history_buffer.get_history();
         debug!("History before chat: {:#?}", history);
         let response = self
             .ollama
             .send_chat_messages_with_history(
                 &mut history,
-                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message]).format(FormatType::Json),
+                ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message])
+                    .format(FormatType::Json),
             )
             .await?;
 
@@ -193,7 +230,10 @@ impl Moderator {
 
         let response = self
             .ollama
-            .send_chat_messages(ChatMessageRequest::new(self.model_name.to_owned(), history).format(FormatType::Json))
+            .send_chat_messages(
+                ChatMessageRequest::new(self.model_name.to_owned(), history)
+                    .format(FormatType::Json),
+            )
             .await?;
         Ok(response.message.content)
     }
@@ -326,7 +366,9 @@ mod moderator_test {
             schema_for!(tools::WebSearchParams),
         );
         let response = moderator
-            .chat_forum_with_tool(r#"Hey @Kate, Suche mir nach den aktuellen Trends in der Weltwirtschaft"#)
+            .chat_forum_with_tool(
+                r#"Hey @Kate, Suche mir nach den aktuellen Trends in der Weltwirtschaft"#,
+            )
             .await;
 
         let Ok(res) = response else {
