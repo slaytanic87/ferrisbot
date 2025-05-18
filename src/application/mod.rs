@@ -1,3 +1,4 @@
+mod member;
 mod moderator;
 pub mod tools;
 pub use moderator::Moderator;

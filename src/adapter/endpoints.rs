@@ -12,7 +12,7 @@ use crate::{
 use log::debug;
 use mobot::{
     api::{
-        ChatPermissions, GetChatAdministratorsRequest, RestrictChatMemberRequest,
+        ChatPermissions, GetChatAdministratorsRequest, GetChatRequest, RestrictChatMemberRequest,
         SendMessageRequest,
     },
     Action, BotState, Event, State,
@@ -57,10 +57,11 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
     let mut bot_controller = state.get().write().await;
     let chat_type = event.update.get_message()?.clone().chat.chat_type;
     if chat_type != "private" {
+        let message_date_unix = event.update.get_message()?.clone().date;
         let chat_id = event.update.get_message()?.chat.id.to_string();
         let admin_list = event
             .api
-            .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id))
+            .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.clone()))
             .await?;
         admin_list.iter().for_each(|admin| {
             let username_opt: Option<String> = admin.user.username.clone();
@@ -70,6 +71,24 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
                 }
             }
         });
+ 
+        let chat_full_info_list = event.api.get_chat(&GetChatRequest::new(chat_id)).await?;
+        if let Some(active_usernames) = chat_full_info_list.active_usernames {
+            active_usernames.iter().for_each(|username| {
+                if !bot_controller
+                    .moderator
+                    .user_management
+                    .contains_user(username)
+                {
+                    bot_controller.moderator.user_management.add_user(
+                        -1,
+                        username,
+                        "",
+                        message_date_unix as u64,
+                    );
+                }
+            });
+        }
     }
     Ok(Action::Done)
 }

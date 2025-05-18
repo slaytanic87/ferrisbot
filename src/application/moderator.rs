@@ -11,8 +11,8 @@ use schemars::schema::RootSchema;
 use std::env;
 use std::{collections::VecDeque, vec};
 
+use super::{member::UserManagement, MessageInput, ModeratorFeedback};
 use crate::application::tools::execute_tool;
-use super::{MessageInput, ModeratorFeedback};
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 60;
 pub const NO_ACTION: &str = "NO_ACTION";
@@ -45,6 +45,11 @@ impl HistoryBuffer {
         }
     }
 
+    pub fn add_initial_prompt_message(&mut self, message: String) {
+        self.initial_prompt_messages
+            .push(ChatMessage::system(message));
+    }
+
     pub fn get_history(&self) -> Vec<ChatMessage> {
         [
             self.initial_prompt_messages.clone(),
@@ -68,6 +73,7 @@ pub struct Moderator {
     ollama: Ollama,
     history_buffer: HistoryBuffer,
     administrators: Vec<String>,
+    pub user_management: UserManagement,
     tool_infos: Vec<ToolInfo>,
 }
 
@@ -124,6 +130,7 @@ impl Moderator {
             ollama: ollama_client,
             history_buffer,
             administrators: Vec::new(),
+            user_management: UserManagement::new(),
             tool_infos: Vec::default(),
         }
     }
@@ -167,6 +174,8 @@ impl Moderator {
         input: &str,
     ) -> std::result::Result<String, anyhow::Error> {
         let mut history: Vec<ChatMessage> = Vec::new();
+
+        history.push(ChatMessage::system(String::from("You are a validator assistant for moderator feedback messages. Your task is to taken actions based on the feedback messages.")));
 
         let response = self
             .ollama
