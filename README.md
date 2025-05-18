@@ -71,7 +71,23 @@ This internal flag is important when you define a situation in the template wher
  {NO_ACTION}
 ```
 
-#### Notes
+## Setup local development
+
+### External Dependencies
+
+This crate requires OpenSSL and `pkg-config`:
+
+- On Linux: `pkg-config libssl-dev`
+- On Mac: nothing to do!
+
+### Compile
+
+```bash
+cargo install
+cargo build
+```
+
+### Notes
 
 - For the Telegram api framework, I'm using my own fork version of [mobot](https://github.com/slaytanic87/mobot), where the missing telegram api capabilities are implemented: Restriction of chat members, forum message support and get administrator member list.
 When the features are fully tested and the time allows me, I will create a PR to contribute back if they want.
