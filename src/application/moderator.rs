@@ -72,7 +72,6 @@ pub struct Moderator {
     model_name: String,
     ollama: Ollama,
     history_buffer: HistoryBuffer,
-    administrators: Vec<String>,
     pub user_management: UserManagement,
     tool_infos: Vec<ToolInfo>,
 }
@@ -129,7 +128,6 @@ impl Moderator {
             model_name,
             ollama: ollama_client,
             history_buffer,
-            administrators: Vec::new(),
             user_management: UserManagement::new(),
             tool_infos: Vec::default(),
         }
@@ -245,15 +243,6 @@ impl Moderator {
             )
             .await?;
         Ok(response.message.content)
-    }
-
-    pub fn register_administrator(&mut self, username: String) {
-        debug!("Registering administrator: {}", username);
-        self.administrators.push(username);
-    }
-
-    pub fn is_administrator(&self, username: &str) -> bool {
-        self.administrators.contains(&username.to_string())
     }
 }
 

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::debug;
+
 #[derive(Clone, Default)]
 pub struct UserEntity {
     pub user_id: i64,
@@ -27,12 +29,14 @@ impl UserEntity {
 #[derive(Clone, Default)]
 pub struct UserManagement {
     user_map: HashMap<String, UserEntity>,
+    administrators: Vec<String>,
 }
 
 impl UserManagement {
     pub fn new() -> Self {
         Self {
             user_map: HashMap::new(),
+            administrators: Vec::new(),
         }
     }
 
@@ -63,5 +67,14 @@ impl UserManagement {
 
     pub fn get_user(&self, username: &str) -> Option<&UserEntity> {
         self.user_map.get(username)
+    }
+
+    pub fn register_administrator(&mut self, username: String) {
+        debug!("Registering administrator: {}", username);
+        self.administrators.push(username);
+    }
+
+    pub fn is_administrator(&self, username: &str) -> bool {
+        self.administrators.contains(&username.to_string())
     }
 }

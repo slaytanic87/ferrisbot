@@ -58,21 +58,28 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
     let chat_type = event.update.get_message()?.clone().chat.chat_type;
     if chat_type != "private" {
         let message_date_unix = event.update.get_message()?.clone().date;
-        let chat_id = event.update.get_message()?.chat.id.to_string();
+        let chat_id: &str = &event.update.get_message()?.chat.id.to_string();
         let admin_list = event
             .api
-            .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.clone()))
+            .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.to_string()))
             .await?;
         admin_list.iter().for_each(|admin| {
             let username_opt: Option<String> = admin.user.username.clone();
             if let Some(username) = username_opt {
-                if !bot_controller.moderator.is_administrator(username.as_str()) {
-                    bot_controller.moderator.register_administrator(username);
+                if !bot_controller
+                    .moderator
+                    .user_management
+                    .is_administrator(username.as_str())
+                {
+                    bot_controller
+                        .moderator
+                        .user_management
+                        .register_administrator(username);
                 }
             }
         });
- 
-        let chat_full_info_list = event.api.get_chat(&GetChatRequest::new(chat_id)).await?;
+
+        let chat_full_info_list = event.api.get_chat(&GetChatRequest::new(chat_id.to_string())).await?;
         if let Some(active_usernames) = chat_full_info_list.active_usernames {
             active_usernames.iter().for_each(|username| {
                 if !bot_controller
@@ -103,6 +110,7 @@ pub async fn bot_greeting_action(
 
     if !bot_controller
         .moderator
+        .user_management
         .is_administrator(username_opt.unwrap().as_str())
     {
         return Ok(Action::Done);
@@ -192,7 +200,11 @@ pub async fn handle_chat_messages(
     let bot_name = bot_controller.name.clone();
     let bot_username = bot_controller.bot_username.clone();
     let username = username_opt.unwrap_or("unknown".to_string());
-    if bot_controller.moderator.is_administrator(username.as_str()) {
+    if bot_controller
+        .moderator
+        .user_management
+        .is_administrator(username.as_str())
+    {
         debug!("Ignoring admin user {}", username);
         return Ok(Action::Done);
     }
@@ -293,13 +305,18 @@ pub async fn mute_user_action(
 
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     let username: String = user_opt.unwrap_or("unknown".to_string());
-    if !bot_controller.moderator.is_administrator(username.as_str()) {
+    if !bot_controller
+        .moderator
+        .user_management
+        .is_administrator(username.as_str())
+    {
         debug!("User {} don't have admin rights to mute", username);
         return Ok(Action::Done);
     }
 
     if bot_controller
         .moderator
+        .user_management
         .is_administrator(username_be_muted.as_str())
     {
         debug!("User {} is admin, can't mute", username_be_muted);
@@ -384,6 +401,7 @@ pub async fn unmute_user_action(
     let bot_controller = state.get().write().await;
     if !bot_controller
         .moderator
+        .user_management
         .is_administrator(user_opt.unwrap().as_str())
     {
         return Ok(Action::Done);
@@ -391,6 +409,7 @@ pub async fn unmute_user_action(
 
     if bot_controller
         .moderator
+        .user_management
         .is_administrator(username_be_unmuted.as_str())
     {
         debug!("User {} is admin, can't unmute", username_be_unmuted);
