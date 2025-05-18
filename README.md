@@ -80,11 +80,17 @@ This crate requires OpenSSL and `pkg-config`:
 - On Linux: `pkg-config libssl-dev`
 - On Mac: nothing to do!
 
-### Compile
+### Build the project
 
 ```bash
 cargo install
 cargo build
+```
+
+### Run
+
+```bash
+cargo run
 ```
 
 ### Notes
