@@ -83,7 +83,6 @@ This crate requires OpenSSL and `pkg-config`:
 ### Build the project
 
 ```bash
-cargo install
 cargo build
 ```
 
