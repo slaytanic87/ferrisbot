@@ -91,7 +91,7 @@ fn assemble_prompt_template(name: &str, prompt_template: &str) -> String {
 
     let no_action_message = serde_json::to_string(&ModeratorFeedback {
         moderator: name.to_string(),
-        message: String::from(format!("[{NO_ACTION}]")),
+        message: format!("[{NO_ACTION}]"),
     });
 
     let mut task_template: String = prompt_template
@@ -104,7 +104,7 @@ fn assemble_prompt_template(name: &str, prompt_template: &str) -> String {
     task_template.push_str("Output format as valid JSON: \n\n");
     task_template.push_str(&output_message_json);
     task_template.push_str("\n\n");
-    return task_template;
+    task_template
 }
 
 impl Moderator {
@@ -293,6 +293,11 @@ mod moderator_test {
             .chat_forum_without_tool(r#"{ "channel": "56789", "user": "Kevin", "message": "Hallo Kate in welchen Channel sind wir gerade?" }"#)
             .await;
 
+        let rs5 = moderator
+            .chat_forum_without_tool(r#"{ "channel": "56789", "user": "Kevin", "message": "ich frage mich wo Fuffi ist?" }"#)
+            .await;
+
+
         if let Ok(res) = rs1 {
             debug!("{}", res);
             assert_ne!(res, application::NO_ACTION);
@@ -306,6 +311,10 @@ mod moderator_test {
             assert_ne!(res, application::NO_ACTION);
         }
         if let Ok(res) = rs4 {
+            debug!("{}", res);
+            assert_ne!(res, application::NO_ACTION);
+        }
+        if let Ok(res) = rs5 {
             debug!("{}", res);
             assert_ne!(res, application::NO_ACTION);
         }
