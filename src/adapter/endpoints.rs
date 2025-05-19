@@ -119,8 +119,8 @@ pub async fn bot_greeting_action(
         return Ok(Action::Done);
     }
 
-    let reponse_rs = bot_controller.moderator.introduce_moderator().await;
-    if let Ok(response) = reponse_rs {
+    let response_rs = bot_controller.moderator.introduce_moderator().await;
+    if let Ok(response) = response_rs {
         let moderator_feedback: ModeratorFeedback = serde_json::from_str(&response)?;
         if let Some(message_thread_id) = message_thread_id_opt {
             let message_re =
