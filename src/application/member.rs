@@ -55,10 +55,20 @@ impl UserManagement {
         self.user_map.remove(username);
     }
 
-    pub fn update_user_activity(&mut self, username: &str, last_activity_unix_time: u64) {
+    pub fn update_user_activity(
+        &mut self,
+        username: &str,
+        firstname: &str,
+        user_id: i64,
+        last_activity_unix_time: u64,
+    ) {
         if let Some(user_entity) = self.user_map.get_mut(username) {
             user_entity.last_activity_unix_time = last_activity_unix_time;
+            user_entity.firstname = firstname.to_string();
+            user_entity.user_id = user_id;
+            return;
         }
+        self.add_user(user_id, username, firstname, last_activity_unix_time);
     }
 
     pub fn contains_user(&self, username: &str) -> bool {

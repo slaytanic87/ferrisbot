@@ -79,7 +79,10 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
             }
         });
 
-        let chat_full_info_list = event.api.get_chat(&GetChatRequest::new(chat_id.to_string())).await?;
+        let chat_full_info_list = event
+            .api
+            .get_chat(&GetChatRequest::new(chat_id.to_string()))
+            .await?;
         if let Some(active_usernames) = chat_full_info_list.active_usernames {
             active_usernames.iter().for_each(|username| {
                 if !bot_controller
@@ -174,10 +177,13 @@ pub async fn handle_chat_messages(
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
     let username_opt: Option<String> = event.update.from_user()?.clone().username;
+    let user_id: i64 = event.update.from_user()?.clone().id;
+    let last_activity_unix_time: u64 = event.update.get_message()?.clone().date as u64;
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
     let first_name: String = event.update.from_user()?.clone().first_name;
     let message: Option<String> = event.update.get_message()?.clone().text;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
 
     // Only text message is supported
     if message.is_none() {
@@ -196,10 +202,13 @@ pub async fn handle_chat_messages(
         &event.update.get_message()?.clone().chat.title.unwrap()
     };
 
-    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
-    let bot_name = bot_controller.name.clone();
-    let bot_username = bot_controller.bot_username.clone();
-    let username = username_opt.unwrap_or("unknown".to_string());
+    let username = username_opt.unwrap_or(user_id.to_string());
+
+    bot_controller
+        .moderator
+        .user_management
+        .update_user_activity(&username, &first_name, user_id, last_activity_unix_time);
+
     if bot_controller
         .moderator
         .user_management
@@ -210,7 +219,7 @@ pub async fn handle_chat_messages(
     }
     let text_message = &message
         .unwrap()
-        .replace(format!("@{bot_username}").as_str(), bot_name.as_str());
+        .replace(format!("@{}", bot_controller.bot_username).as_str(), &bot_controller.name);
     let input = MessageInput {
         channel: topic.to_string(),
         user: first_name,
@@ -258,8 +267,8 @@ pub async fn chat_summarize_action(
         &event.update.get_message()?.clone().chat.title.unwrap()
     };
 
-    let summerize_message_rs = bot_controller.moderator.summerize_chat(topic).await;
-    if let Ok(summary) = summerize_message_rs {
+    let summarize_message_rs = bot_controller.moderator.summarize_chat(topic).await;
+    if let Ok(summary) = summarize_message_rs {
         if let Some(thread_id) = message_thread_id {
             let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary)
                 .with_message_thread_id(thread_id);

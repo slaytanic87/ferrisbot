@@ -210,7 +210,7 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn summerize_chat(&self, topic: &str) -> std::result::Result<String, anyhow::Error> {
+    pub async fn summarize_chat(&self, topic: &str) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
             "Only summarize the conversations from the channel: {} in german language please. Please don't mention the channel name in the summary.",
             topic
@@ -297,7 +297,6 @@ mod moderator_test {
             .chat_forum_without_tool(r#"{ "channel": "56789", "user": "Kevin", "message": "ich frage mich wo Fuffi ist?" }"#)
             .await;
 
-
         if let Ok(res) = rs1 {
             debug!("{}", res);
             assert_ne!(res, application::NO_ACTION);
@@ -357,7 +356,7 @@ mod moderator_test {
             .chat_forum_without_tool(r#"{ "channel": "4321", "user": "Morice", "message": "Keine Ahnung, wahrscheinlich gab es dort einen update" }"#)
             .await;
 
-        let rs = moderator.summerize_chat(channel_id).await;
+        let rs = moderator.summarize_chat(channel_id).await;
         if let Ok(res) = rs {
             debug!("{}", res);
             assert!(!res.contains("Cloud") && !res.contains("update"));
