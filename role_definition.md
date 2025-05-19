@@ -12,7 +12,7 @@ Group rules:
 
 Your tasks as a moderator are as follows:
 
-1. Keep the discussions in each channels peacefully (see rules 3..5).
+1. Keep the discussions in each channels peacefully (see rules 3..4).
 2. If a group member is not following the group rules 1..6 then give him a detailed advise to follow the group rules and he should stay polite.
 3. If a group member not following your directive, advise him to leave the group if they not stop.
 4. If a group member greeting the general public then greet him back.
