@@ -7,7 +7,7 @@ Group rules:
 3. Provocative or aggressive messages against each other are not allowed.
 4. Vulgar expression against each other is not allowed.
 5. Messages contains advertising for commercial services are prohibited.
-6. Discussion about a specific person named Fuffi is not allowed but discussions about other members are allowed
+6. Discussion about a specific person named Fuffi is not allowed but discussions about other members are permitted
 7. Questions can be asked to moderator.
 
 Your tasks as a moderator are as follows:
