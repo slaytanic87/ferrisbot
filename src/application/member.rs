@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, SystemTime},
+};
 
 use log::debug;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct UserEntity {
     pub user_id: i64,
     pub username: String,
@@ -51,6 +54,18 @@ impl UserManagement {
         self.user_map.insert(username.to_string(), user_entity);
     }
 
+    pub fn get_inactive_users_since(&self, duration: Duration) -> Vec<UserEntity> {
+        let current_time: u64 = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        self.user_map
+            .values()
+            .filter(|user| current_time - user.last_activity_unix_time > duration.as_secs())
+            .cloned()
+            .collect()
+    }
+
     pub fn remove_user(&mut self, username: &str) {
         self.user_map.remove(username);
     }
@@ -69,6 +84,7 @@ impl UserManagement {
             return;
         }
         self.add_user(user_id, username, firstname, last_activity_unix_time);
+        debug!("Usermap {:?}", self.user_map.values());
     }
 
     pub fn contains_user(&self, username: &str) -> bool {
@@ -86,5 +102,9 @@ impl UserManagement {
 
     pub fn is_administrator(&self, username: &str) -> bool {
         self.administrators.contains(&username.to_string())
+    }
+
+    pub fn clear_administrators(&mut self) {
+        self.administrators.clear();
     }
 }

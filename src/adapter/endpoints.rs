@@ -53,53 +53,100 @@ impl BotController {
     }
 }
 
+pub async fn inactive_users_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let username_opt: Option<String> = event.update.from_user()?.clone().username;
+    let bot_controller = state.get().write().await;
+    let months: u64 = 6;
+    let months_in_secs: u64 = months * 4 * 7 * 24 * 60 * 60;
+    let inactive_users = bot_controller
+        .moderator
+        .user_management
+        .get_inactive_users_since(std::time::Duration::from_secs(months_in_secs));
+
+    if !bot_controller
+        .moderator
+        .user_management
+        .is_administrator(username_opt.unwrap().as_str())
+        || inactive_users.is_empty()
+    {
+        return Ok(Action::Done);
+    }
+
+    let mut message = String::new();
+    for user in inactive_users {
+        message.push_str(&format!(
+            "User {} is inactive last {} months\n",
+            user.username, months
+        ));
+    }
+    event
+        .api
+        .send_message(&SendMessageRequest::new(event.update.chat_id()?, message))
+        .await?;
+    Ok(Action::Done)
+}
+
 pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
     let chat_type = event.update.get_message()?.clone().chat.chat_type;
-    if chat_type != "private" {
-        let message_date_unix = event.update.get_message()?.clone().date;
-        let chat_id: &str = &event.update.get_message()?.chat.id.to_string();
-        let admin_list = event
-            .api
-            .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.to_string()))
-            .await?;
-        admin_list.iter().for_each(|admin| {
-            let username_opt: Option<String> = admin.user.username.clone();
-            if let Some(username) = username_opt {
-                if !bot_controller
+
+    if chat_type == "private" {
+        return Ok(Action::Done);
+    }
+
+    let message_date_unix = event.update.get_message()?.clone().date;
+    let chat_id: &str = &event.update.get_message()?.chat.id.to_string();
+    let admin_list = event
+        .api
+        .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.to_string()))
+        .await?;
+
+    bot_controller
+        .moderator
+        .user_management
+        .clear_administrators();
+
+    admin_list.iter().for_each(|admin| {
+        let username_opt: Option<String> = admin.user.username.clone();
+        if let Some(username) = username_opt {
+            if !bot_controller
+                .moderator
+                .user_management
+                .is_administrator(username.as_str())
+            {
+                bot_controller
                     .moderator
                     .user_management
-                    .is_administrator(username.as_str())
-                {
-                    bot_controller
-                        .moderator
-                        .user_management
-                        .register_administrator(username);
-                }
+                    .register_administrator(username);
+            }
+        }
+    });
+
+    let chat_full_info_list = event
+        .api
+        .get_chat(&GetChatRequest::new(chat_id.to_string()))
+        .await?;
+
+    if let Some(active_usernames) = chat_full_info_list.active_usernames {
+        active_usernames.iter().for_each(|username| {
+            if !bot_controller
+                .moderator
+                .user_management
+                .contains_user(username)
+            {
+                bot_controller.moderator.user_management.add_user(
+                    -1,
+                    username,
+                    "",
+                    message_date_unix as u64,
+                );
             }
         });
-
-        let chat_full_info_list = event
-            .api
-            .get_chat(&GetChatRequest::new(chat_id.to_string()))
-            .await?;
-        if let Some(active_usernames) = chat_full_info_list.active_usernames {
-            active_usernames.iter().for_each(|username| {
-                if !bot_controller
-                    .moderator
-                    .user_management
-                    .contains_user(username)
-                {
-                    bot_controller.moderator.user_management.add_user(
-                        -1,
-                        username,
-                        "",
-                        message_date_unix as u64,
-                    );
-                }
-            });
-        }
     }
+
     Ok(Action::Done)
 }
 
@@ -131,43 +178,6 @@ pub async fn bot_greeting_action(
             return Ok(Action::Done);
         }
         return Ok(Action::ReplyText(moderator_feedback.message));
-    }
-    Ok(Action::Done)
-}
-
-pub async fn directive_tool_action(
-    event: Event,
-    state: State<BotController>,
-) -> Result<Action, anyhow::Error> {
-    let message: Option<String> = event.update.get_message()?.clone().text;
-    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-
-    // Only text message is supported
-    if message.is_none() {
-        return Ok(Action::Done);
-    }
-
-    let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
-    let bot_name = bot_controller.name.clone();
-    let bot_username = bot_controller.bot_username.clone();
-
-    let reply_rs = bot_controller
-        .moderator
-        .chat_forum_with_tool(
-            &message
-                .unwrap()
-                .replace(format!("@{bot_username}").as_str(), bot_name.as_str()),
-        )
-        .await;
-
-    if let Ok(reply_message) = reply_rs {
-        if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, reply_message)
-                .with_message_thread_id(thread_id);
-            event.api.send_message(message_re).await?;
-            return Ok(Action::Done);
-        }
-        return Ok(Action::ReplyText(reply_message));
     }
     Ok(Action::Done)
 }
@@ -217,9 +227,10 @@ pub async fn handle_chat_messages(
         debug!("Ignoring admin user {}", username);
         return Ok(Action::Done);
     }
-    let text_message = &message
-        .unwrap()
-        .replace(format!("@{}", bot_controller.bot_username).as_str(), &bot_controller.name);
+    let text_message = &message.unwrap().replace(
+        format!("@{}", bot_controller.bot_username).as_str(),
+        &bot_controller.name,
+    );
     let input = MessageInput {
         channel: topic.to_string(),
         user: first_name,

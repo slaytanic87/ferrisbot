@@ -62,6 +62,10 @@ async fn main() {
             Route::Message(Matcher::BotCommand(String::from("summary"))),
             ferrisbot::chat_summarize_action,
         )
+        .add_route(
+            Route::Message(Matcher::BotCommand(String::from("inactiveUsers"))),
+            ferrisbot::inactive_users_action,
+        )
         // Matcher::Regex(format!("(?i)(@{bot_name}|@{bot_username})")
         .add_route(
             Route::Message(Matcher::Any),
