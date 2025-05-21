@@ -33,6 +33,7 @@ impl UserEntity {
 pub struct UserManagement {
     user_map: HashMap<String, UserEntity>,
     administrators: Vec<String>,
+    pub managed_chat_id: Option<String>,
 }
 
 impl UserManagement {
@@ -40,6 +41,7 @@ impl UserManagement {
         Self {
             user_map: HashMap::new(),
             administrators: Vec::new(),
+            managed_chat_id: None,
         }
     }
 
@@ -106,5 +108,9 @@ impl UserManagement {
 
     pub fn clear_administrators(&mut self) {
         self.administrators.clear();
+    }
+
+    pub fn set_managed_chat_id(&mut self, chat_id: Option<String>) {
+        self.managed_chat_id = chat_id;
     }
 }

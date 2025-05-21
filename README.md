@@ -45,6 +45,7 @@ export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
 export BOT_NAME = "Eve"
 export BOT_USERNAME = "ModeratorBot"
+export MANAGED_CHAT_ID = "<Chat id of the group which should be managed by the bot>"
 ```
 
 ## Define Bot Task
@@ -55,7 +56,7 @@ create or adjust the bot role definition as enumerations (natural language) in t
 
 Following placeholders must be used in your role definition prompt template
 
-#### Botname 
+#### Botname
 
 replace with the name of your bot which was given:
 

@@ -45,11 +45,6 @@ impl HistoryBuffer {
         }
     }
 
-    pub fn add_initial_prompt_message(&mut self, message: String) {
-        self.initial_prompt_messages
-            .push(ChatMessage::system(message));
-    }
-
     pub fn get_history(&self) -> Vec<ChatMessage> {
         [
             self.initial_prompt_messages.clone(),
@@ -167,13 +162,13 @@ impl Moderator {
         Ok(response.message.content)
     }
 
-    pub async fn chat_forum_with_tool(
+    pub async fn chat_validator_with_tool(
         &mut self,
         input: &str,
     ) -> std::result::Result<String, anyhow::Error> {
         let mut history: Vec<ChatMessage> = Vec::new();
 
-        history.push(ChatMessage::system(String::from("You are a validator assistant for moderator feedback messages. Your task is to taken actions based on the feedback messages.")));
+        history.push(ChatMessage::system(String::from("You are a validator assistant for moderator feedback messages. Your task is to extract actions from the messages. All messages are in german language.")));
 
         let response = self
             .ollama
@@ -372,7 +367,7 @@ mod moderator_test {
             schema_for!(tools::WebSearchParams),
         );
         let response = moderator
-            .chat_forum_with_tool(
+            .chat_validator_with_tool(
                 r#"Hey @Kate, Suche mir nach den aktuellen Trends in der Weltwirtschaft"#,
             )
             .await;

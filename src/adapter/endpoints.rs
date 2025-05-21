@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::{
     application::{
         self,
@@ -18,6 +20,7 @@ use mobot::{
     Action, BotState, Event, State,
 };
 use schemars::schema_for;
+use serde_json::Value;
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Clone, BotState, Default)]
@@ -29,7 +32,7 @@ pub struct BotController {
 
 impl BotController {
     pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
-        let moderator = Moderator::new(name, task_template)
+        let mut moderator = Moderator::new(name, task_template)
             .add_tool(
                 WEB_SEARCH.to_string(),
                 WEB_SEARCH_DESCRIPTION.to_string(),
@@ -45,6 +48,11 @@ impl BotController {
                 MUTE_MEMBER_DESCRIPTION.to_string(),
                 schema_for!(tools::MuteMemberParams),
             );
+
+        moderator
+            .user_management
+            .set_managed_chat_id(env::var("MANAGED_CHAT_ID)").ok());
+
         Self {
             moderator,
             name: name.into(),
@@ -65,6 +73,20 @@ pub async fn inactive_users_action(
         .moderator
         .user_management
         .get_inactive_users_since(std::time::Duration::from_secs(months_in_secs));
+    let chat_id: i64 = event.update.chat_id()?;
+
+    let managed_chat_id: Option<String> = bot_controller
+        .moderator
+        .user_management
+        .managed_chat_id
+        .clone();
+    if managed_chat_id.is_some() && managed_chat_id.unwrap() == chat_id.to_string() {
+        debug!(
+            "This Chat {} is managed and this command is not designed for that purpose",
+            chat_id
+        );
+        return Ok(Action::Done);
+    }
 
     if !bot_controller
         .moderator
@@ -186,17 +208,31 @@ pub async fn handle_chat_messages(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let username_opt: Option<String> = event.update.from_user()?.clone().username;
     let user_id: i64 = event.update.from_user()?.clone().id;
+    let username_opt: Option<String> = event.update.from_user()?.clone().username;
     let last_activity_unix_time: u64 = event.update.get_message()?.clone().date as u64;
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
     let first_name: String = event.update.from_user()?.clone().first_name;
     let message: Option<String> = event.update.get_message()?.clone().text;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
+    let chat_id: i64 = event.update.chat_id()?;
 
     // Only text message is supported
     if message.is_none() {
+        return Ok(Action::Done);
+    }
+
+    let managed_chat_id: Option<String> = bot_controller
+        .moderator
+        .user_management
+        .managed_chat_id
+        .clone();
+    if managed_chat_id.is_some() && managed_chat_id.unwrap() != chat_id.to_string() {
+        debug!(
+            "Chat {} is not registered as managed chat, so it's ignored",
+            chat_id
+        );
         return Ok(Action::Done);
     }
 
@@ -291,29 +327,19 @@ pub async fn chat_summarize_action(
     Ok(Action::Done)
 }
 
-pub async fn mute_user_action(
-    event: Event,
-    state: State<BotController>,
-) -> Result<Action, anyhow::Error> {
-    let user_opt: Option<String> = event.update.from_user()?.clone().username;
-    let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
-    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-
-    if reply_to_message_opt.is_none() {
-        debug!("No reply to message object has been found");
-        return Ok(Action::Done);
-    }
-
-    let user_id_be_muted: i64 = reply_to_message_opt
-        .as_ref()
+fn extract_user_id_chat_attribute(json: &Option<Value>) -> i64 {
+    json.as_ref()
         .unwrap()
         .get("from")
         .unwrap()
         .get("id")
         .unwrap()
         .as_i64()
-        .unwrap();
-    let username_be_muted: String = reply_to_message_opt
+        .unwrap()
+}
+
+fn extract_username_chat_attribute(json: &Option<Value>) -> String {
+    json.as_ref()
         .unwrap()
         .get("from")
         .unwrap()
@@ -321,7 +347,24 @@ pub async fn mute_user_action(
         .unwrap()
         .as_str()
         .unwrap()
-        .to_string();
+        .to_string()
+}
+
+pub async fn mute_user_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let user_opt: Option<String> = event.update.from_user()?.clone().username;
+    let reply_to_message_opt = &event.update.get_message()?.clone().reply_to_message;
+    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+
+    if reply_to_message_opt.is_none() {
+        debug!("No reply to message object has been found");
+        return Ok(Action::Done);
+    }
+
+    let user_id_be_muted: i64 = extract_user_id_chat_attribute(reply_to_message_opt);
+    let username_be_muted: String = extract_username_chat_attribute(reply_to_message_opt);
 
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     let username: String = user_opt.unwrap_or("unknown".to_string());
@@ -392,31 +435,14 @@ pub async fn unmute_user_action(
 ) -> Result<Action, anyhow::Error> {
     let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-    let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
+    let reply_to_message_opt = &event.update.get_message()?.clone().reply_to_message;
 
     if reply_to_message_opt.is_none() {
         return Ok(Action::Done);
     }
 
-    let user_id_be_unmuted: i64 = reply_to_message_opt
-        .as_ref()
-        .unwrap()
-        .get("from")
-        .unwrap()
-        .get("id")
-        .unwrap()
-        .as_i64()
-        .unwrap();
-
-    let username_be_unmuted: String = reply_to_message_opt
-        .unwrap()
-        .get("from")
-        .unwrap()
-        .get("username")
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .to_string();
+    let user_id_be_unmuted: i64 = extract_user_id_chat_attribute(reply_to_message_opt);
+    let username_be_unmuted: String = extract_username_chat_attribute(reply_to_message_opt);
 
     let bot_controller = state.get().write().await;
     if !bot_controller
