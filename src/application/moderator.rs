@@ -168,7 +168,7 @@ impl Moderator {
     ) -> std::result::Result<String, anyhow::Error> {
         let mut history: Vec<ChatMessage> = Vec::new();
 
-        history.push(ChatMessage::system(String::from("You are a validator assistant for moderator feedback messages. Your task is to extract actions from the messages. All messages are in german language.")));
+        history.push(ChatMessage::system(String::from("You are a validator assistant for moderator feedback messages. Your task is to extract actions from the messages and execute those actions.")));
 
         let response = self
             .ollama

@@ -14,8 +14,7 @@ use crate::{
 use log::debug;
 use mobot::{
     api::{
-        ChatPermissions, GetChatAdministratorsRequest, GetChatRequest, RestrictChatMemberRequest,
-        SendMessageRequest,
+        ChatAction, ChatPermissions, GetChatAdministratorsRequest, GetChatRequest, RestrictChatMemberRequest, SendChatActionRequest, SendMessageRequest
     },
     Action, BotState, Event, State,
 };
@@ -263,6 +262,13 @@ pub async fn handle_chat_messages(
         debug!("Ignoring admin user {}", username);
         return Ok(Action::Done);
     }
+
+    event.api.send_chat_action(&SendChatActionRequest {
+        chat_id,
+        message_thread_id,
+        action: ChatAction::Typing
+    }).await?;
+
     let text_message = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
         &bot_controller.name,
