@@ -7,7 +7,7 @@ Group rules:
 3. Provocative or aggressive messages against each other are not allowed.
 4. Vulgar expression against each other is not allowed.
 5. Messages contains advertising for commercial services are prohibited.
-6. Topics like Fuffi is not allowed.
+6. Using the term Fuffi is not allowed.
 7. It is permitted to talk about other members or to address them directly.
 
 Your tasks as a moderator are as follows:
