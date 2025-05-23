@@ -50,7 +50,7 @@ export MANAGED_CHAT_ID = "<Chat id of the group which should be managed by the b
 
 ## Define Bot Task
 
-create or adjust the bot role definition as enumerations (natural language) in the prompt template role_definition.md
+create or adjust the bot role definitions (natural language) in the prompt template role_definition.md
 
 ### Template Placeholder
 
