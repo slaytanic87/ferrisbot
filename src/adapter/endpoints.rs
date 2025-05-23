@@ -178,6 +178,7 @@ pub async fn bot_greeting_action(
     let username_opt: Option<String> = event.update.from_user()?.clone().username;
     let bot_controller = state.get().write().await;
     let message_thread_id_opt: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+    let chat_id: i64 = event.update.chat_id()?;
 
     if !bot_controller
         .moderator
@@ -186,6 +187,11 @@ pub async fn bot_greeting_action(
     {
         return Ok(Action::Done);
     }
+    event.api.send_chat_action(&SendChatActionRequest {
+        chat_id,
+        message_thread_id: message_thread_id_opt,
+        action: ChatAction::Typing
+    }).await?;
 
     let response_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = response_rs {
@@ -307,6 +313,7 @@ pub async fn chat_summarize_action(
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
+    let chat_id: i64 = event.update.chat_id()?;
 
     let topic = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
         reply_to_message
@@ -319,6 +326,12 @@ pub async fn chat_summarize_action(
     } else {
         &event.update.get_message()?.clone().chat.title.unwrap()
     };
+
+    event.api.send_chat_action(&SendChatActionRequest {
+        chat_id,
+        message_thread_id,
+        action: ChatAction::Typing
+    }).await?;
 
     let summarize_message_rs = bot_controller.moderator.summarize_chat(topic).await;
     if let Ok(summary) = summarize_message_rs {
