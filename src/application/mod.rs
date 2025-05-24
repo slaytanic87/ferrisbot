@@ -9,12 +9,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MessageInput {
     pub channel: String,
+    pub user_id: String,
+    pub chat_id: String,
     pub user: String,
-    pub message: String,
+    pub message: String
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ModeratorFeedback {
+    pub user_id: String,
+    pub chat_id: String,
     pub moderator: String,
     pub message: String,
 }

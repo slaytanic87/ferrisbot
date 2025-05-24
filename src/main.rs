@@ -2,8 +2,8 @@ use ferrisbot::BotController;
 use mobot::{api::BotCommand, Client, Matcher, Route, Router};
 use std::{env, fs::read_to_string};
 
-fn read_prompt_template() -> String {
-    let template = read_to_string("./role_definition.md");
+fn read_prompt_template(path: &str) -> String {
+    let template = read_to_string(path);
     match template {
         Ok(content) => content,
         Err(e) => {
@@ -29,7 +29,7 @@ async fn main() {
         },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
-    let controller = BotController::new(&bot_name, &bot_username, &read_prompt_template());
+    let controller = BotController::new(&bot_name, &bot_username, &read_prompt_template("./role_definition.md"));
     let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
 
     router

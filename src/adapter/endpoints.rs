@@ -281,8 +281,10 @@ pub async fn handle_chat_messages(
     );
     let input = MessageInput {
         channel: topic.to_string(),
+        user_id: user_id.to_string(),
+        chat_id: chat_id.to_string(),
         user: first_name,
-        message: text_message.to_string(),
+        message: text_message.to_string()
     };
     let input_json_str = serde_json::to_string(&input)?;
     let reply_rs = bot_controller
