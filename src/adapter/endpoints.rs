@@ -278,15 +278,6 @@ pub async fn handle_chat_messages(
         return Ok(Action::Done);
     }
 
-    event
-        .api
-        .send_chat_action(&SendChatActionRequest {
-            chat_id,
-            message_thread_id,
-            action: ChatAction::Typing,
-        })
-        .await?;
-
     let text_message = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
         &bot_controller.name,
@@ -309,6 +300,13 @@ pub async fn handle_chat_messages(
         if message_str.message.contains(application::NO_ACTION) {
             return Ok(Action::Done);
         }
+
+        event.api.send_chat_action(&SendChatActionRequest {
+            chat_id,
+            message_thread_id,
+            action: ChatAction::Typing,
+        }).await?;
+
         if let Some(thread_id) = message_thread_id {
             let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str.message)
                 .with_message_thread_id(thread_id);
