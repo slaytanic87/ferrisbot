@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
-pub const KICK_USER_WITHOUTBAN: &str = "kick_user_withoutban";
+pub const KICK_USER_WITHOUTBAN: &str = "kick_user_from_chat";
 pub const KICK_USER_WITHOUTBAN_DESCRIPTION: &str = "Kicks a user from the telegram chat.";
 
 #[derive(Deserialize, JsonSchema)]

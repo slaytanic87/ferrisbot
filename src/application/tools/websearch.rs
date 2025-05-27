@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::Error;
 
-pub const WEB_SEARCH: &str = "websearch";
+pub const WEB_SEARCH: &str = "web_search";
 pub const WEB_SEARCH_DESCRIPTION: &str = "Searches the web using DuckDuckGo's HTML interface.";
 
 #[derive(Deserialize, JsonSchema)]

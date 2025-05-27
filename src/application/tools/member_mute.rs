@@ -1,5 +1,6 @@
 use std::{env, time::SystemTime};
 
+use log::debug;
 use mobot::{
     api::{ChatPermissions, RestrictChatMemberRequest},
     Client,
@@ -8,8 +9,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
-pub const MUTE_MEMBER: &str = "mute_member";
-pub const MUTE_MEMBER_DESCRIPTION: &str = "Mute a member from the telegram chat.";
+pub const MUTE_MEMBER: &str = "mute_member_in_chat";
+pub const MUTE_MEMBER_DESCRIPTION: &str = "Mute the user from the telegram chat.";
 
 #[derive(Deserialize, JsonSchema)]
 pub struct MuteMemberParams {
@@ -78,6 +79,8 @@ impl MuteMember {
             .restrict_chat_member(&restrict_chat_req)
             .await?;
         if !is_successful_muted {
+            debug!("Failed to mute member: user_id={}, chat_id={}, mute_time={}",
+                   user_id_be_muted, chat_id, mute_time_seconds);
             return Ok("Failed to mute the member".into());
         }
         Ok("Member muted successfully".into())

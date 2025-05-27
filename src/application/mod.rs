@@ -12,7 +12,7 @@ pub struct MessageInput {
     pub user_id: String,
     pub chat_id: String,
     pub user: String,
-    pub message: String
+    pub message: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

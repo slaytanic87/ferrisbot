@@ -69,9 +69,10 @@ pub struct Moderator {
     history_buffer: HistoryBuffer,
     pub user_management: UserManagement,
     tool_infos: Vec<ToolInfo>,
+    tool_prompt_template: String,
 }
 
-fn assemble_prompt_template(name: &str, prompt_template: &str) -> String {
+fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
     let input_message_json = serde_json::to_string(&MessageInput {
         channel: String::from("<Channelname>"),
         user_id: String::from("<User idendity as numbers>"),
@@ -108,8 +109,14 @@ fn assemble_prompt_template(name: &str, prompt_template: &str) -> String {
     task_template
 }
 
+fn assemble_tool_prompt_template(
+    tool_prompt_template: &str,
+) -> String {
+    tool_prompt_template.replace("{NO_ACTION}", NO_ACTION)
+}
+
 impl Moderator {
-    pub fn new(name: &str, prompt_template: &str) -> Self {
+    pub fn new(name: &str, moderator_prompt_template: &str, tool_prompt_template: &str) -> Self {
         let ollama_client = Ollama::new(
             env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
             env::var("OLLAMA_PORT")
@@ -119,9 +126,9 @@ impl Moderator {
         );
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
-        let messages = vec![ChatMessage::system(assemble_prompt_template(
+        let messages = vec![ChatMessage::system(assemble_moderator_prompt_template(
             name,
-            prompt_template,
+            moderator_prompt_template,
         ))];
         let history_buffer = HistoryBuffer::new(messages);
 
@@ -131,10 +138,11 @@ impl Moderator {
             history_buffer,
             user_management: UserManagement::new(),
             tool_infos: Vec::default(),
+            tool_prompt_template: assemble_tool_prompt_template(tool_prompt_template),
         }
     }
 
-    pub fn add_tool(mut self, name: String, description: String, parameters: RootSchema) -> Self {
+    pub fn add_tool(&mut self, name: String, description: String, parameters: RootSchema) {
         let tool_info = ToolInfo {
             tool_type: ToolType::Function,
             function: ToolFunctionInfo {
@@ -144,7 +152,6 @@ impl Moderator {
             },
         };
         self.tool_infos.push(tool_info);
-        self
     }
 
     pub async fn chat_forum_without_tool(
@@ -174,7 +181,7 @@ impl Moderator {
     ) -> std::result::Result<String, anyhow::Error> {
         let mut history: Vec<ChatMessage> = Vec::new();
 
-        history.push(ChatMessage::system(String::from("You are a validator assistant for moderator feedback messages. Your task is to extract actions from the messages and execute those actions.")));
+        history.push(ChatMessage::system(self.tool_prompt_template.clone()));
 
         let response = self
             .ollama
@@ -255,13 +262,13 @@ mod moderator_test {
 
     use crate::application::{
         self,
-        tools::{self, WEB_SEARCH, WEB_SEARCH_DESCRIPTION},
+        tools::{self, MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION},
     };
 
     use super::*;
 
-    fn read_prompt_template() -> String {
-        let template = std::fs::read_to_string("./role_definition.md");
+    fn read_prompt_template(path: &str) -> String {
+        let template = std::fs::read_to_string(path);
         match template {
             Ok(content) => content,
             Err(e) => {
@@ -272,7 +279,12 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template()).add_tool(
+        let mut moderator = Moderator::new(
+            "Kate",
+            &read_prompt_template("./role_definition.md"),
+            &read_prompt_template("./role_validator.md"),
+        );
+        moderator.add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
             schema_for!(tools::WebSearchParams),
@@ -322,11 +334,17 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_summerize_chat_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template()).add_tool(
+        let mut moderator = Moderator::new(
+            "Kate",
+            &read_prompt_template("./role_definition.md"),
+            &read_prompt_template("./role_validator.md"),
+        );
+        moderator.add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
             schema_for!(tools::WebSearchParams),
         );
+
         init_logger();
 
         let channel_id = "Have Fun";
@@ -367,16 +385,30 @@ mod moderator_test {
     #[tokio::test]
     async fn should_test_tool_feature_successfully() {
         init_logger();
-        let mut moderator = Moderator::new("Kate", &read_prompt_template()).add_tool(
+        let mut moderator = Moderator::new(
+            "Kate",
+            &read_prompt_template("./role_definition.md"),
+            &read_prompt_template("./role_validator.md"),
+        );
+        moderator.add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
             schema_for!(tools::WebSearchParams),
         );
+        moderator.add_tool(
+            MUTE_MEMBER.to_string(),
+            MUTE_MEMBER_DESCRIPTION.to_string(),
+            schema_for!(tools::MuteMemberParams),
+        );
+        let request = ModeratorFeedback {
+            user_id: "1".to_string(),
+            chat_id: "1".to_string(),
+            moderator: "Kate".to_string(),
+            message: "Ok, ich suche nach der aktuellen Neuigkeiten in der Weltwirtschaft".to_string(),
+        };
+        let input_json = serde_json::to_string(&request).unwrap();
         let response = moderator
-            .chat_validator_with_tool(
-                r#"Hey @Kate, Suche mir nach den aktuellen Trends in der Weltwirtschaft"#,
-            )
-            .await;
+            .chat_validator_with_tool(input_json.as_str()).await;
 
         let Ok(res) = response else {
             panic!("Failed to get response2");

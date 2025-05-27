@@ -14,7 +14,8 @@ use crate::{
 use log::debug;
 use mobot::{
     api::{
-        ChatAction, ChatPermissions, GetChatAdministratorsRequest, GetChatRequest, RestrictChatMemberRequest, SendChatActionRequest, SendMessageRequest
+        ChatAction, ChatPermissions, GetChatAdministratorsRequest, GetChatRequest,
+        RestrictChatMemberRequest, SendChatActionRequest, SendMessageRequest,
     },
     Action, BotState, Event, State,
 };
@@ -30,23 +31,28 @@ pub struct BotController {
 }
 
 impl BotController {
-    pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
-        let mut moderator = Moderator::new(name, task_template)
-            .add_tool(
-                WEB_SEARCH.to_string(),
-                WEB_SEARCH_DESCRIPTION.to_string(),
-                schema_for!(tools::WebSearchParams),
-            )
-            .add_tool(
-                KICK_USER_WITHOUTBAN.to_string(),
-                KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
-                schema_for!(tools::KickUserParams),
-            )
-            .add_tool(
-                MUTE_MEMBER.to_string(),
-                MUTE_MEMBER_DESCRIPTION.to_string(),
-                schema_for!(tools::MuteMemberParams),
-            );
+    pub fn new(
+        name: &str,
+        bot_username: &str,
+        task_template: &str,
+        tool_prompt_template: &str,
+    ) -> Self {
+        let mut moderator = Moderator::new(name, task_template, tool_prompt_template);
+        moderator.add_tool(
+            WEB_SEARCH.to_string(),
+            WEB_SEARCH_DESCRIPTION.to_string(),
+            schema_for!(tools::WebSearchParams),
+        );
+        moderator.add_tool(
+            KICK_USER_WITHOUTBAN.to_string(),
+            KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
+            schema_for!(tools::KickUserParams),
+        );
+        moderator.add_tool(
+            MUTE_MEMBER.to_string(),
+            MUTE_MEMBER_DESCRIPTION.to_string(),
+            schema_for!(tools::MuteMemberParams),
+        );
 
         moderator
             .user_management
@@ -187,11 +193,14 @@ pub async fn bot_greeting_action(
     {
         return Ok(Action::Done);
     }
-    event.api.send_chat_action(&SendChatActionRequest {
-        chat_id,
-        message_thread_id: message_thread_id_opt,
-        action: ChatAction::Typing
-    }).await?;
+    event
+        .api
+        .send_chat_action(&SendChatActionRequest {
+            chat_id,
+            message_thread_id: message_thread_id_opt,
+            action: ChatAction::Typing,
+        })
+        .await?;
 
     let response_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = response_rs {
@@ -269,11 +278,14 @@ pub async fn handle_chat_messages(
         return Ok(Action::Done);
     }
 
-    event.api.send_chat_action(&SendChatActionRequest {
-        chat_id,
-        message_thread_id,
-        action: ChatAction::Typing
-    }).await?;
+    event
+        .api
+        .send_chat_action(&SendChatActionRequest {
+            chat_id,
+            message_thread_id,
+            action: ChatAction::Typing,
+        })
+        .await?;
 
     let text_message = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
@@ -284,7 +296,7 @@ pub async fn handle_chat_messages(
         user_id: user_id.to_string(),
         chat_id: chat_id.to_string(),
         user: first_name,
-        message: text_message.to_string()
+        message: text_message.to_string(),
     };
     let input_json_str = serde_json::to_string(&input)?;
     let reply_rs = bot_controller
@@ -329,11 +341,14 @@ pub async fn chat_summarize_action(
         &event.update.get_message()?.clone().chat.title.unwrap()
     };
 
-    event.api.send_chat_action(&SendChatActionRequest {
-        chat_id,
-        message_thread_id,
-        action: ChatAction::Typing
-    }).await?;
+    event
+        .api
+        .send_chat_action(&SendChatActionRequest {
+            chat_id,
+            message_thread_id,
+            action: ChatAction::Typing,
+        })
+        .await?;
 
     let summarize_message_rs = bot_controller.moderator.summarize_chat(topic).await;
     if let Ok(summary) = summarize_message_rs {

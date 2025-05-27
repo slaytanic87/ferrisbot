@@ -4,7 +4,7 @@
 
 ## What is this?
 
-Ferrisbot is a Rust based chat bot, designed to used with Telegram messenger.
+Ferrisbot is a Rust based chat bot, designed to used with the Telegram messenger.
 
 ## Setup LLM
 
@@ -34,7 +34,7 @@ ollama run mistral-nemo:12b
 
 **Remember: The models must have _tool_ support and if it works well or not depends on the model of your choice!**
 
-## Setup Telegram token & parameters
+## Setup Telegram bot token & parameters
 
 **examples:**
 

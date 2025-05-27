@@ -29,7 +29,12 @@ async fn main() {
         },
     ];
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
-    let controller = BotController::new(&bot_name, &bot_username, &read_prompt_template("./role_definition.md"));
+    let controller = BotController::new(
+        &bot_name,
+        &bot_username,
+        &read_prompt_template("./role_definition.md"),
+        &read_prompt_template("./role_validator.md"),
+    );
     let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
 
     router
