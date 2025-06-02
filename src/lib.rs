@@ -8,4 +8,6 @@ pub use adapter::init_bot;
 pub use adapter::mute_user_action;
 pub use adapter::unmute_user_action;
 pub use adapter::BotController;
+pub use application::Assistant;
 pub use application::Moderator;
+pub use application::UserManagement;

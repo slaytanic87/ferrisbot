@@ -72,14 +72,14 @@ This internal flag is important when you define a situation in the template wher
  {NO_ACTION}
 ```
 
-## Setup local development
-
 ### External Dependencies
 
 This crate requires OpenSSL and `pkg-config`:
 
 - On Linux: `pkg-config libssl-dev`
 - On Mac: nothing to do!
+
+## Setup local development
 
 ### Build the project
 

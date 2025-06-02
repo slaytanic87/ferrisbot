@@ -1,8 +1,11 @@
+mod assistant_agent;
 mod member;
-mod moderator;
+mod moderator_agent;
 pub mod tools;
-pub use moderator::Moderator;
-pub use moderator::NO_ACTION;
+pub use assistant_agent::Assistant;
+pub use member::UserManagement;
+pub use moderator_agent::Moderator;
+pub use moderator_agent::NO_ACTION;
 
 use serde::{Deserialize, Serialize};
 

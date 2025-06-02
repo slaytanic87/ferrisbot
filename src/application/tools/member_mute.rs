@@ -79,8 +79,10 @@ impl MuteMember {
             .restrict_chat_member(&restrict_chat_req)
             .await?;
         if !is_successful_muted {
-            debug!("Failed to mute member: user_id={}, chat_id={}, mute_time={}",
-                   user_id_be_muted, chat_id, mute_time_seconds);
+            debug!(
+                "Failed to mute member: user_id={}, chat_id={}, mute_time={}",
+                user_id_be_muted, chat_id, mute_time_seconds
+            );
             return Ok("Failed to mute the member".into());
         }
         Ok("Member muted successfully".into())

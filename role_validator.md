@@ -3,4 +3,4 @@ If no instruction and tool can be found in the moderator's message then response
 
 Input message:
 
-{"user_id": "<User id which moderator talking to>", "chat_id ": "<Chat id of the current chat>", "moderator": "<Name of the moderator>", "message":"<Message of the moderator where the instructions should be extracted>"}
+{"user_id": "<User id which moderator talking to>", "chat_id": "<Chat id of the current chat>", "moderator": "<Name of the moderator>", "message":"<Message of the moderator where the instructions should be extracted>"}

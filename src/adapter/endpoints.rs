@@ -9,7 +9,7 @@ use crate::{
         },
         MessageInput, ModeratorFeedback,
     },
-    Moderator,
+    Assistant, Moderator, UserManagement,
 };
 use log::debug;
 use mobot::{
@@ -26,6 +26,8 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
     pub moderator: Moderator,
+    pub assistant: Assistant,
+    pub user_management: UserManagement,
     pub name: String,
     bot_username: String,
 }
@@ -37,29 +39,31 @@ impl BotController {
         task_template: &str,
         tool_prompt_template: &str,
     ) -> Self {
-        let mut moderator = Moderator::new(name, task_template, tool_prompt_template);
-        moderator.add_tool(
+        let moderator = Moderator::new(name, task_template);
+        let mut assistant = Assistant::new(tool_prompt_template);
+        assistant.add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
             schema_for!(tools::WebSearchParams),
         );
-        moderator.add_tool(
+        assistant.add_tool(
             KICK_USER_WITHOUTBAN.to_string(),
             KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
             schema_for!(tools::KickUserParams),
         );
-        moderator.add_tool(
+        assistant.add_tool(
             MUTE_MEMBER.to_string(),
             MUTE_MEMBER_DESCRIPTION.to_string(),
             schema_for!(tools::MuteMemberParams),
         );
 
-        moderator
-            .user_management
-            .set_managed_chat_id(env::var("MANAGED_CHAT_ID)").ok());
+        let mut user_management = UserManagement::new();
+        user_management.set_managed_chat_id(env::var("MANAGED_CHAT_ID)").ok());
 
         Self {
             moderator,
+            assistant,
+            user_management,
             name: name.into(),
             bot_username: bot_username.into(),
         }
@@ -75,16 +79,11 @@ pub async fn inactive_users_action(
     let months: u64 = 6;
     let months_in_secs: u64 = months * 4 * 7 * 24 * 60 * 60;
     let inactive_users = bot_controller
-        .moderator
         .user_management
         .get_inactive_users_since(std::time::Duration::from_secs(months_in_secs));
     let chat_id: i64 = event.update.chat_id()?;
 
-    let managed_chat_id: Option<String> = bot_controller
-        .moderator
-        .user_management
-        .managed_chat_id
-        .clone();
+    let managed_chat_id: Option<String> = bot_controller.user_management.managed_chat_id.clone();
     if managed_chat_id.is_some() && managed_chat_id.unwrap() == chat_id.to_string() {
         debug!(
             "This Chat {} is managed and this command is not designed for that purpose",
@@ -94,7 +93,6 @@ pub async fn inactive_users_action(
     }
 
     if !bot_controller
-        .moderator
         .user_management
         .is_administrator(username_opt.unwrap().as_str())
         || inactive_users.is_empty()
@@ -131,21 +129,16 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
         .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.to_string()))
         .await?;
 
-    bot_controller
-        .moderator
-        .user_management
-        .clear_administrators();
+    bot_controller.user_management.clear_administrators();
 
     admin_list.iter().for_each(|admin| {
         let username_opt: Option<String> = admin.user.username.clone();
         if let Some(username) = username_opt {
             if !bot_controller
-                .moderator
                 .user_management
                 .is_administrator(username.as_str())
             {
                 bot_controller
-                    .moderator
                     .user_management
                     .register_administrator(username);
             }
@@ -159,17 +152,10 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
 
     if let Some(active_usernames) = chat_full_info_list.active_usernames {
         active_usernames.iter().for_each(|username| {
-            if !bot_controller
-                .moderator
-                .user_management
-                .contains_user(username)
-            {
-                bot_controller.moderator.user_management.add_user(
-                    -1,
-                    username,
-                    "",
-                    message_date_unix as u64,
-                );
+            if !bot_controller.user_management.contains_user(username) {
+                bot_controller
+                    .user_management
+                    .add_user(-1, username, "", message_date_unix as u64);
             }
         });
     }
@@ -187,7 +173,6 @@ pub async fn bot_greeting_action(
     let chat_id: i64 = event.update.chat_id()?;
 
     if !bot_controller
-        .moderator
         .user_management
         .is_administrator(username_opt.unwrap().as_str())
     {
@@ -237,11 +222,7 @@ pub async fn handle_chat_messages(
         return Ok(Action::Done);
     }
 
-    let managed_chat_id: Option<String> = bot_controller
-        .moderator
-        .user_management
-        .managed_chat_id
-        .clone();
+    let managed_chat_id: Option<String> = bot_controller.user_management.managed_chat_id.clone();
     if managed_chat_id.is_some() && managed_chat_id.unwrap() != chat_id.to_string() {
         debug!(
             "Chat {} is not registered as managed chat, so it's ignored",
@@ -264,13 +245,14 @@ pub async fn handle_chat_messages(
 
     let username = username_opt.unwrap_or(user_id.to_string());
 
-    bot_controller
-        .moderator
-        .user_management
-        .update_user_activity(&username, &first_name, user_id, last_activity_unix_time);
+    bot_controller.user_management.update_user_activity(
+        &username,
+        &first_name,
+        user_id,
+        last_activity_unix_time,
+    );
 
     if bot_controller
-        .moderator
         .user_management
         .is_administrator(username.as_str())
     {
@@ -301,11 +283,14 @@ pub async fn handle_chat_messages(
             return Ok(Action::Done);
         }
 
-        event.api.send_chat_action(&SendChatActionRequest {
-            chat_id,
-            message_thread_id,
-            action: ChatAction::Typing,
-        }).await?;
+        event
+            .api
+            .send_chat_action(&SendChatActionRequest {
+                chat_id,
+                message_thread_id,
+                action: ChatAction::Typing,
+            })
+            .await?;
 
         if let Some(thread_id) = message_thread_id {
             let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str.message)
@@ -403,7 +388,6 @@ pub async fn mute_user_action(
     let bot_controller: RwLockReadGuard<'_, BotController> = state.get().read().await;
     let username: String = user_opt.unwrap_or("unknown".to_string());
     if !bot_controller
-        .moderator
         .user_management
         .is_administrator(username.as_str())
     {
@@ -412,7 +396,6 @@ pub async fn mute_user_action(
     }
 
     if bot_controller
-        .moderator
         .user_management
         .is_administrator(username_be_muted.as_str())
     {
@@ -480,7 +463,6 @@ pub async fn unmute_user_action(
 
     let bot_controller = state.get().write().await;
     if !bot_controller
-        .moderator
         .user_management
         .is_administrator(user_opt.unwrap().as_str())
     {
@@ -488,7 +470,6 @@ pub async fn unmute_user_action(
     }
 
     if bot_controller
-        .moderator
         .user_management
         .is_administrator(username_be_unmuted.as_str())
     {
