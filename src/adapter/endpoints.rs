@@ -151,7 +151,7 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
         .await?;
 
     if let Some(active_usernames) = chat_full_info_list.active_usernames {
-        active_usernames.iter().for_each(|username| {
+        active_usernames.iter().for_each(|username: &String| {
             if !bot_controller.user_management.contains_user(username) {
                 bot_controller
                     .user_management
