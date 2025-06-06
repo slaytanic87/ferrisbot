@@ -12,7 +12,7 @@ log = "0.4.27"
 mobot = { git = "https://github.com/slaytanic87/mobot", tag = "0.4.0" }
 ollama-rs = { version = "0.3.1", features = ["macros", "tool-implementations",  "stream", "headers"] }
 regex = "1.11.1"
-reqwest = "0.12.18"
+reqwest = "0.12.19"
 schemars = "0.8.22"
 scraper = "0.23.1"
 serde = "1.0.219"

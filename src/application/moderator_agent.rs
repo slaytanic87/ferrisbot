@@ -12,6 +12,7 @@ use std::{collections::VecDeque, vec};
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 60;
 pub const NO_ACTION: &str = "NO_ACTION";
+pub const MODERATOR_PROMPT_FILE: &str = "./moderator_role_definition.md";
 
 #[derive(Clone, Default)]
 pub struct HistoryBuffer {
@@ -87,11 +88,11 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         message: format!("[{NO_ACTION}]"),
         user_id: String::from("<User idendity of the user who sent the message to the moderator>"),
         chat_id: String::from("<Chat idendity where the moderator and the users are in>"),
-    });
+    }).unwrap();
 
-    let mut task_template: String = prompt_template
+    let mut task_template: String = prompt_template.trim()
         .replace("{name}", name)
-        .replace("{NO_ACTION}", no_action_message.unwrap().as_str());
+        .replace("{NO_ACTION}", no_action_message.as_str());
 
     task_template.push_str("Input format as valid JSON: \n\n");
     task_template.push_str(&input_message_json);
@@ -188,7 +189,7 @@ mod moderator_test {
 
     use mobot::init_logger;
 
-    use crate::application::{self};
+    use crate::application::moderator_agent::{Moderator, MODERATOR_PROMPT_FILE};
 
     use super::*;
 
@@ -204,7 +205,7 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template("./role_definition.md"));
+        let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
         init_logger();
         let rs1 = moderator
             .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_id:" "1", "chat_id": "56789",  "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
@@ -227,23 +228,23 @@ mod moderator_test {
 
         if let Ok(res) = rs1 {
             debug!("{}", res);
-            assert_ne!(res, application::NO_ACTION);
+            assert_ne!(res, NO_ACTION);
         }
         if let Ok(res) = rs2 {
             debug!("{}", res);
-            assert_ne!(res, application::NO_ACTION);
+            assert_ne!(res, NO_ACTION);
         }
         if let Ok(res) = rs3 {
             debug!("{}", res);
-            assert_ne!(res, application::NO_ACTION);
+            assert_ne!(res, NO_ACTION);
         }
         if let Ok(res) = rs4 {
             debug!("{}", res);
-            assert_ne!(res, application::NO_ACTION);
+            assert_ne!(res, NO_ACTION);
         }
         if let Ok(res) = rs5 {
             debug!("{}", res);
-            assert_ne!(res, application::NO_ACTION);
+            assert_ne!(res, NO_ACTION);
         }
     }
 

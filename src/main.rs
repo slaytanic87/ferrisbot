@@ -1,4 +1,4 @@
-use ferrisbot::BotController;
+use ferrisbot::{BotController, ASSISTANT_PROMPT_FILE, MODERATOR_PROMPT_FILE};
 use mobot::{api::BotCommand, Client, Matcher, Route, Router};
 use std::{env, fs::read_to_string};
 
@@ -32,8 +32,8 @@ async fn main() {
     let controller = BotController::new(
         &bot_name,
         &bot_username,
-        &read_prompt_template("./role_definition.md"),
-        &read_prompt_template("./role_validator.md"),
+        &read_prompt_template(MODERATOR_PROMPT_FILE),
+        &read_prompt_template(ASSISTANT_PROMPT_FILE),
     );
     let mut router: mobot::Router<BotController> = Router::new(client).with_state(controller);
 

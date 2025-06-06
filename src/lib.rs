@@ -11,3 +11,5 @@ pub use adapter::BotController;
 pub use application::Assistant;
 pub use application::Moderator;
 pub use application::UserManagement;
+pub use application::ASSISTANT_PROMPT_FILE;
+pub use application::MODERATOR_PROMPT_FILE;

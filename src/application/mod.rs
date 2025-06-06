@@ -6,6 +6,8 @@ pub use assistant_agent::Assistant;
 pub use member::UserManagement;
 pub use moderator_agent::Moderator;
 pub use moderator_agent::NO_ACTION;
+pub use moderator_agent::MODERATOR_PROMPT_FILE;
+pub use assistant_agent::ASSISTANT_PROMPT_FILE;
 
 use serde::{Deserialize, Serialize};
 

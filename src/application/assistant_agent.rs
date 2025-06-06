@@ -12,7 +12,9 @@ use schemars::schema::RootSchema;
 
 use crate::application::tools::execute_tool;
 
-use super::NO_ACTION;
+use super::{ModeratorFeedback, NO_ACTION};
+
+pub const ASSISTANT_PROMPT_FILE: &str = "./assistant_role_definition.md";
 
 #[derive(Clone, Default)]
 pub struct Assistant {
@@ -23,7 +25,18 @@ pub struct Assistant {
 }
 
 fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
-    tool_prompt_template.replace("{NO_ACTION}", NO_ACTION)
+    let output_message_json = serde_json::to_string(&ModeratorFeedback {
+        moderator: String::from("<Name of the moderator>"),
+        message: String::from("<Message of the moderator where the instructions should be extracted>"),
+        user_id: String::from("<User id which moderator talking to>"),
+        chat_id: String::from("<Chat id of the current chat>"),
+    }).unwrap();
+    let mut template = tool_prompt_template.trim().replace("{NO_ACTION}", NO_ACTION);
+    template.push_str("\n\n");
+    template.push_str("Input message:");
+    template.push_str("\n\n");
+    template.push_str(&output_message_json);
+    template
 }
 
 impl Assistant {
@@ -57,7 +70,7 @@ impl Assistant {
         self.tool_infos.push(tool_info);
     }
 
-    pub async fn chat_validator_with_tool(
+    pub async fn validate_chat(
         &mut self,
         input: &str,
     ) -> std::result::Result<String, anyhow::Error> {
@@ -107,7 +120,7 @@ mod assistant_test {
     use mobot::init_logger;
     use schemars::schema_for;
 
-    use crate::application::assistant_agent::Assistant;
+    use crate::application::assistant_agent::{Assistant, ASSISTANT_PROMPT_FILE};
 
     use crate::application::tools::{
         MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
@@ -116,6 +129,7 @@ mod assistant_test {
 
     fn read_prompt_template(path: &str) -> String {
         let template = std::fs::read_to_string(path);
+
         match template {
             Ok(content) => content,
             Err(e) => {
@@ -127,7 +141,7 @@ mod assistant_test {
     #[tokio::test]
     async fn should_test_tool_feature_successfully() {
         init_logger();
-        let mut assistant = Assistant::new(&read_prompt_template("./role_validator.md"));
+        let mut assistant = Assistant::new(&read_prompt_template(ASSISTANT_PROMPT_FILE));
         assistant.add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
@@ -147,7 +161,7 @@ mod assistant_test {
         };
         let input_json = serde_json::to_string(&request).unwrap();
         let response = assistant
-            .chat_validator_with_tool(input_json.as_str())
+            .validate_chat(input_json.as_str())
             .await;
 
         let Ok(res) = response else {
