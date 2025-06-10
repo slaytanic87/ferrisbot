@@ -68,9 +68,9 @@ pub struct Moderator {
 
 fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
     let input_message_json = serde_json::to_string(&MessageInput {
-        channel: String::from("<Channelname>"),
-        user_id: String::from("<User idendity as numbers>"),
-        chat_id: String::from("<Chat idendity as numbers>"),
+        channel: String::from("<Name of the channel>"),
+        user_id: String::from("<User identity as numbers>"),
+        chat_id: String::from("<Chat identity as numbers>"),
         user: String::from("<Name of the member>"),
         message: String::from("<Text message>"),
     })
@@ -78,16 +78,16 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     let output_message_json = serde_json::to_string(&ModeratorFeedback {
         moderator: String::from("<Name of the moderator>"),
         message: String::from("<Moderator message>"),
-        user_id: String::from("<User idendity of the user who sent the message to the moderator>"),
-        chat_id: String::from("<Chat idendity where the moderator and the users are in>"),
+        user_id: String::from("<User identity of the user who sent the message to the moderator>"),
+        chat_id: String::from("<Chat identity where moderator and user chat together>"),
     })
     .unwrap();
 
     let no_action_message = serde_json::to_string(&ModeratorFeedback {
         moderator: name.to_string(),
         message: format!("[{NO_ACTION}]"),
-        user_id: String::from("<User idendity of the user who sent the message to the moderator>"),
-        chat_id: String::from("<Chat idendity where the moderator and the users are in>"),
+        user_id: String::from("<User identity of the user who sent the message to the moderator>"),
+        chat_id: String::from("<Chat identity where the moderator and the users are in>"),
     }).unwrap();
 
     let mut task_template: String = prompt_template.trim()
