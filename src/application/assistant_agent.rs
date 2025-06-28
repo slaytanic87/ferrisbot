@@ -8,7 +8,7 @@ use ollama_rs::{
     },
     Ollama,
 };
-use schemars::schema::RootSchema;
+use schemars::Schema;
 
 use crate::application::tools::execute_tool;
 
@@ -63,7 +63,7 @@ impl Assistant {
         }
     }
 
-    pub fn add_tool(&mut self, name: String, description: String, parameters: RootSchema) {
+    pub fn add_tool(&mut self, name: String, description: String, parameters: Schema) {
         let tool_info = ToolInfo {
             tool_type: ToolType::Function,
             function: ToolFunctionInfo {
