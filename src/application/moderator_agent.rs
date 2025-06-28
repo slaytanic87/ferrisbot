@@ -253,7 +253,7 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_summerize_chat_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template("./role_definition.md"));
+        let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
 
         init_logger();
 
