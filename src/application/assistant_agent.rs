@@ -12,7 +12,7 @@ use schemars::schema::RootSchema;
 
 use crate::application::tools::execute_tool;
 
-use super::{ModeratorFeedback, NO_ACTION};
+use super::{ModeratorMessage, NO_ACTION};
 
 pub const ASSISTANT_PROMPT_FILE: &str = "./assistant_role_definition.md";
 
@@ -25,13 +25,18 @@ pub struct Assistant {
 }
 
 fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
-    let output_message_json = serde_json::to_string(&ModeratorFeedback {
+    let output_message_json = serde_json::to_string(&ModeratorMessage {
         moderator: String::from("<Name of the moderator>"),
-        message: String::from("<Message of the moderator where the instructions should be extracted>"),
+        message: String::from(
+            "<Message of the moderator where the instructions should be extracted>",
+        ),
         user_id: String::from("<User id which moderator talking to>"),
         chat_id: String::from("<Chat id of the current chat>"),
-    }).unwrap();
-    let mut template = tool_prompt_template.trim().replace("{NO_ACTION}", NO_ACTION);
+    })
+    .unwrap();
+    let mut template = tool_prompt_template
+        .trim()
+        .replace("{NO_ACTION}", NO_ACTION);
     template.push_str("\n\n");
     template.push_str("Input message:");
     template.push_str("\n\n");
@@ -125,7 +130,7 @@ mod assistant_test {
     use crate::application::tools::{
         MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
     };
-    use crate::application::{tools, ModeratorFeedback};
+    use crate::application::{tools, ModeratorMessage};
 
     fn read_prompt_template(path: &str) -> String {
         let template = std::fs::read_to_string(path);
@@ -152,7 +157,7 @@ mod assistant_test {
             MUTE_MEMBER_DESCRIPTION.to_string(),
             schema_for!(tools::MuteMemberParams),
         );
-        let request = ModeratorFeedback {
+        let request = ModeratorMessage {
             user_id: "1".to_string(),
             chat_id: "1".to_string(),
             moderator: "Kate".to_string(),
@@ -160,9 +165,7 @@ mod assistant_test {
                 .to_string(),
         };
         let input_json = serde_json::to_string(&request).unwrap();
-        let response = assistant
-            .validate_chat(input_json.as_str())
-            .await;
+        let response = assistant.validate_chat(input_json.as_str()).await;
 
         let Ok(res) = response else {
             panic!("Failed to get response2");

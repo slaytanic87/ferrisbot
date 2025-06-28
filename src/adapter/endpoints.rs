@@ -7,7 +7,7 @@ use crate::{
             self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
             MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
         },
-        MessageInput, ModeratorFeedback,
+        MessageInput, ModeratorMessage,
     },
     Assistant, Moderator, UserManagement,
 };
@@ -25,10 +25,10 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
-    pub moderator: Moderator,
-    pub assistant: Assistant,
-    pub user_management: UserManagement,
-    pub name: String,
+    moderator: Moderator,
+    assistant: Assistant,
+    user_management: UserManagement,
+    name: String,
     bot_username: String,
 }
 
@@ -189,7 +189,7 @@ pub async fn bot_greeting_action(
 
     let response_rs = bot_controller.moderator.introduce_moderator().await;
     if let Ok(response) = response_rs {
-        let moderator_feedback: ModeratorFeedback = serde_json::from_str(&response)?;
+        let moderator_feedback: ModeratorMessage = serde_json::from_str(&response)?;
         if let Some(message_thread_id) = message_thread_id_opt {
             let message_re =
                 &SendMessageRequest::new(event.update.chat_id()?, moderator_feedback.message)
@@ -243,7 +243,7 @@ pub async fn handle_chat_messages(
         &event.update.get_message()?.clone().chat.title.unwrap()
     };
 
-    let username = username_opt.unwrap_or(user_id.to_string());
+    let username: String = username_opt.unwrap_or(user_id.to_string());
 
     bot_controller.user_management.update_user_activity(
         &username,
@@ -252,13 +252,14 @@ pub async fn handle_chat_messages(
         last_activity_unix_time,
     );
 
-    if bot_controller
+    let role: &str = if bot_controller
         .user_management
         .is_administrator(username.as_str())
     {
-        debug!("Ignoring admin user {}", username);
-        return Ok(Action::Done);
-    }
+        "Admin"
+    } else {
+        "Regular User"
+    };
 
     let text_message = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
@@ -266,6 +267,7 @@ pub async fn handle_chat_messages(
     );
     let input = MessageInput {
         channel: topic.to_string(),
+        user_role: role.to_string(),
         user_id: user_id.to_string(),
         chat_id: chat_id.to_string(),
         user: first_name,
@@ -278,7 +280,7 @@ pub async fn handle_chat_messages(
         .await;
 
     if let Ok(reply_message) = reply_rs {
-        let message_str: ModeratorFeedback = serde_json::from_str(&reply_message)?;
+        let message_str: ModeratorMessage = serde_json::from_str(&reply_message)?;
         if message_str.message.contains(application::NO_ACTION) {
             return Ok(Action::Done);
         }

@@ -4,7 +4,7 @@
 
 ## What is this?
 
-Ferrisbot is a Rust based chat bot, designed to used with the Telegram messenger.
+Ferrisbot is a Rust based moderator chat bot, designed to used with the Telegram messenger.
 
 ## Setup LLM
 
@@ -58,7 +58,7 @@ Following placeholders must be used in your role definition prompt template
 
 #### Botname
 
-replace with the name of your bot which was given:
+the name of your bot which was given:
 
 ```bash
 {name}
@@ -66,7 +66,7 @@ replace with the name of your bot which was given:
 
 #### No action flag
 
-This internal flag is important when you define a situation in the template where the bot should not response to a message:
+This internal flag is important if you define a situation in the template where the bot should not response to a message:
 
 ```bash
  {NO_ACTION}

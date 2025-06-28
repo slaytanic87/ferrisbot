@@ -1,4 +1,4 @@
-use super::{MessageInput, ModeratorFeedback};
+use super::{MessageInput, ModeratorMessage};
 use log::debug;
 use ollama_rs::{
     generation::{
@@ -69,13 +69,14 @@ pub struct Moderator {
 fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
     let input_message_json = serde_json::to_string(&MessageInput {
         channel: String::from("<Name of the channel>"),
+        user_role: String::from("<Role of the user in the chat>"),
         user_id: String::from("<User identity as numbers>"),
         chat_id: String::from("<Chat identity as numbers>"),
         user: String::from("<Name of the member>"),
         message: String::from("<Text message>"),
     })
     .unwrap();
-    let output_message_json = serde_json::to_string(&ModeratorFeedback {
+    let output_message_json = serde_json::to_string(&ModeratorMessage {
         moderator: String::from("<Name of the moderator>"),
         message: String::from("<Moderator message>"),
         user_id: String::from("<User identity of the user who sent the message to the moderator>"),
@@ -83,14 +84,16 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     })
     .unwrap();
 
-    let no_action_message = serde_json::to_string(&ModeratorFeedback {
+    let no_action_message = serde_json::to_string(&ModeratorMessage {
         moderator: name.to_string(),
         message: format!("[{NO_ACTION}]"),
         user_id: String::from("<User identity of the user who sent the message to the moderator>"),
         chat_id: String::from("<Chat identity where the moderator and the users are in>"),
-    }).unwrap();
+    })
+    .unwrap();
 
-    let mut task_template: String = prompt_template.trim()
+    let mut task_template: String = prompt_template
+        .trim()
         .replace("{name}", name)
         .replace("{NO_ACTION}", no_action_message.as_str());
 
@@ -208,22 +211,22 @@ mod moderator_test {
         let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
         init_logger();
         let rs1 = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_id:" "1", "chat_id": "56789",  "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "1", "chat_id": "56789",  "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
             .await;
         let rs2 = moderator
             .chat_forum_without_tool(
-                r#"{ "channel": "Play & Fun", "user_id:" "2", "chat_id": "56789", "user": "Steffen", "message": "Sabine ist dumm :)" }"#)
+                r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "2", "chat_id": "56789", "user": "Steffen", "message": "Sabine ist dumm :)" }"#)
             .await;
         let rs3 = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Play & Fun",  "user_id:" "1", "chat_id": "56789", "user": "Sabine", "message": "Steffen du bist selber dumm!" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_role": "Regular User",  "user_id:" "1", "chat_id": "56789", "user": "Sabine", "message": "Steffen du bist selber dumm!" }"#)
             .await;
 
         let rs4 = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_id:" "3", "chat_id": "56789",  "user": "Kevin", "message": "Hallo Kate in welchen Channel sind wir gerade?" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "56789",  "user": "Kevin", "message": "Hallo Kate in welchen Channel sind wir gerade?" }"#)
             .await;
 
         let rs5 = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Play & Fun",  "user_id:" "3", "chat_id": "56789", "user": "Kevin", "message": "ich frage mich wo Fuffi ist?" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "56789", "user": "Kevin", "message": "ich frage mich wo Fuffi ist?" }"#)
             .await;
 
         if let Ok(res) = rs1 {
@@ -256,30 +259,30 @@ mod moderator_test {
 
         let channel_id = "Have Fun";
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_id:" "1", "chat_id": "12345", "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_role": "Regular User", "user_id:" "1", "chat_id": "12345", "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
             .await;
         let _ = moderator
             .chat_forum_without_tool(
-                r#"{ "channel": "Have Fun", "user_id:" "2", "chat_id": "12345", "user": "Kevin", "message": "Jau alles bestens" }"#,
+                r#"{ "channel": "Have Fun", "user_role": "Regular User", "user_id:" "2", "chat_id": "12345", "user": "Kevin", "message": "Jau alles bestens" }"#,
             )
             .await;
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_id:" "3", "chat_id": "12345", "user": "Steffi", "message": "Wo ist Steffen in letzter Zeit?" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "12345", "user": "Steffi", "message": "Wo ist Steffen in letzter Zeit?" }"#)
             .await;
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_id:" "1", "chat_id": "12345", "user": "Sabine", "message": "Keine Ahnung wo er steck" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_role": "Regular User", "user_id:" "1", "chat_id": "12345", "user": "Sabine", "message": "Keine Ahnung wo er steck" }"#)
             .await;
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_id:" "2", "chat_id": "12345",  "user": "Kevin", "message": "Der hat Urlaub gerade auf der Karibik hehe :)" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_role": "Regular User", "user_id:" "2", "chat_id": "12345",  "user": "Kevin", "message": "Der hat Urlaub gerade auf der Karibik hehe :)" }"#)
             .await;
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_id:" "1", "chat_id": "12345",  "user": "Sabine", "message": "Schön da möchte ich auch mal hin" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Have Fun", "user_role": "Regular User", "user_id:" "1", "chat_id": "12345",  "user": "Sabine", "message": "Schön da möchte ich auch mal hin" }"#)
             .await;
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Cloud Stuffs", "user_id:" "4", "chat_id": "4321",  "user": "Conrad", "message": "Was passiert gerade in der Cloud?" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Cloud Stuffs", "user_role": "Regular User", "user_id:" "4", "chat_id": "4321",  "user": "Conrad", "message": "Was passiert gerade in der Cloud?" }"#)
             .await;
         let _ = moderator
-            .chat_forum_without_tool(r#"{ "channel": "Cloud Stuffs",  "user_id:" "5", "chat_id": "4321", "user": "Morice", "message": "Keine Ahnung, wahrscheinlich gab es dort einen update" }"#)
+            .chat_forum_without_tool(r#"{ "channel": "Cloud Stuffs", "user_role": "Regular User", "user_id:" "5", "chat_id": "4321", "user": "Morice", "message": "Keine Ahnung, wahrscheinlich gab es dort einen update" }"#)
             .await;
 
         let rs = moderator.summarize_chat(channel_id).await;
