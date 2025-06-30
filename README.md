@@ -74,7 +74,7 @@ This internal flag is important if you define a situation in the template where 
 
 ### External Dependencies
 
-This crate requires OpenSSL and `pkg-config`:
+This application requires OpenSSL and `pkg-config`:
 
 - On Linux: `pkg-config libssl-dev`
 - On Mac: nothing to do!
