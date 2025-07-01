@@ -93,6 +93,13 @@ cargo build
 cargo run
 ```
 
+### Run unit tests with logs
+
+```bash
+export RUST_LOG="debug"
+cargo test -- --nocapture
+```
+
 ### Notes
 
 - For the Telegram api framework, I'm using my own fork version of [mobot](https://github.com/slaytanic87/mobot), where the missing telegram api capabilities are implemented: Restriction of chat members, forum message support, retrieve chat full information, ban/unban users and get administrator member list.

@@ -252,6 +252,34 @@ mod moderator_test {
     }
 
     #[tokio::test]
+    async fn should_test_admin_support_successfully() {
+        let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
+        init_logger();
+        let channel_id = "Play & Fun";
+        let mut message1 = serde_json::to_string(&MessageInput {
+                channel: channel_id.to_string(),
+                user_role: "Regular User".to_string(),
+                user: "Kevin".to_string(),
+                user_id: "123".to_string(),
+                chat_id: "56789".to_string(),
+                message: "Was will Steffen von uns?".to_string(),
+            }).unwrap();
+        let _ = moderator.chat_forum_without_tool(message1.as_str()).await;
+        message1 = serde_json::to_string(&MessageInput {
+                channel: channel_id.to_string(),
+                user_role: "Admin".to_string(),
+                user: "LL".to_string(),
+                user_id: "1".to_string(),
+                chat_id: "56339".to_string(),
+                message: "Hey Kevin, lasst es doch sein darüber zu lästern".to_string(),
+            }).unwrap();
+        let rs = moderator.chat_forum_without_tool(message1.as_str()).await;
+        if let Ok(res) = rs {
+            debug!("{}", res);
+        }
+    }
+
+    #[tokio::test]
     async fn should_test_moderator_summerize_chat_successfully() {
         let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
 
