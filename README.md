@@ -43,14 +43,14 @@ export TELEGRAM_TOKEN = <MY_TELEGRAM_BOT_TOKEN>
 export OLLAMA_HOST_ADDR = "http:localhost"
 export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
-export BOT_NAME = "Eve"
-export BOT_USERNAME = "ModeratorBot"
+export BOT_NAME = "<Name of the bot>"
+export BOT_USERNAME = "<Telegram username of the bot>"
 export MANAGED_CHAT_ID = "<Chat id of the group which should be managed by the bot>"
 ```
 
 ## Define Bot Task
 
-create or adjust the bot role definitions (natural language) in the prompt template role_definition.md
+Create or adjust the bot role definitions (natural language) in the prompt template role_definition.md
 
 ### Template Placeholder
 
@@ -58,7 +58,7 @@ Following placeholders must be used in your role definition prompt template
 
 #### Botname
 
-the name of your bot which was given:
+The name of your bot which has been defined as the environment variable:
 
 ```bash
 {name}
