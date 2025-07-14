@@ -102,6 +102,14 @@ impl UserManagement {
         self.administrators.push(username);
     }
 
+    pub fn determine_user_role(&self, username: &str) -> &str {
+        if self.administrators.contains(&username.to_string()) {
+            "Admin"
+        } else {
+            "Regular User"
+        }
+    }
+
     pub fn is_administrator(&self, username: &str) -> bool {
         self.administrators.contains(&username.to_string())
     }

@@ -252,14 +252,7 @@ pub async fn handle_chat_messages(
         last_activity_unix_time,
     );
 
-    let role: &str = if bot_controller
-        .user_management
-        .is_administrator(username.as_str())
-    {
-        "Admin"
-    } else {
-        "Regular User"
-    };
+    let role: &str = bot_controller.user_management.determine_user_role(username.as_str());
 
     let text_message = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
