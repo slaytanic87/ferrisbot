@@ -25,7 +25,7 @@ pub struct Assistant {
 }
 
 fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
-    let output_message_json = serde_json::to_string(&ModeratorMessage {
+    let input_message_json = serde_json::to_string(&ModeratorMessage {
         moderator: String::from("<Name of the moderator>"),
         message: String::from(
             "<Message of the moderator where the instructions should be extracted>",
@@ -40,7 +40,7 @@ fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
     template.push_str("\n\n");
     template.push_str("Input message:");
     template.push_str("\n\n");
-    template.push_str(&output_message_json);
+    template.push_str(&input_message_json);
     template
 }
 
@@ -75,7 +75,7 @@ impl Assistant {
         self.tool_infos.push(tool_info);
     }
 
-    pub async fn validate_chat(
+    pub async fn validate_and_execute_instruction_chat(
         &mut self,
         input: &str,
     ) -> std::result::Result<String, anyhow::Error> {
@@ -165,7 +165,7 @@ mod assistant_test {
                 .to_string(),
         };
         let input_json = serde_json::to_string(&request).unwrap();
-        let response = assistant.validate_chat(input_json.as_str()).await;
+        let response = assistant.validate_and_execute_instruction_chat(input_json.as_str()).await;
 
         let Ok(res) = response else {
             panic!("Failed to get response2");

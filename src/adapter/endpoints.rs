@@ -269,7 +269,7 @@ pub async fn handle_chat_messages(
     let input_json_str = serde_json::to_string(&input)?;
     let reply_rs = bot_controller
         .moderator
-        .chat_forum_without_tool(input_json_str.as_str())
+        .chat_forum(input_json_str.as_str())
         .await;
 
     if let Ok(reply_message) = reply_rs {
@@ -277,6 +277,13 @@ pub async fn handle_chat_messages(
         if message_str.message.contains(application::NO_ACTION) {
             return Ok(Action::Done);
         }
+        let tool_message: String = bot_controller.assistant.validate_and_execute_instruction_chat(&reply_message).await?;
+
+        let response_msg = if tool_message.contains(application::NO_ACTION) {
+            message_str.message
+        } else {
+            format!("{} \n {}", message_str.message, tool_message)
+        };
 
         event
             .api
@@ -288,7 +295,7 @@ pub async fn handle_chat_messages(
             .await?;
 
         if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str.message)
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, response_msg)
                 .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
