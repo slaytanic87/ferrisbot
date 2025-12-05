@@ -92,18 +92,18 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     })
     .unwrap();
 
-    let mut task_template: String = prompt_template
+    let mut moderator_template: String = prompt_template
         .trim()
         .replace("{name}", name)
         .replace("{NO_ACTION}", no_action_message.as_str());
-
-    task_template.push_str("Input format as valid JSON: \n\n");
-    task_template.push_str(&input_message_json);
-    task_template.push_str("\n\n");
-    task_template.push_str("Output format as valid JSON: \n\n");
-    task_template.push_str(&output_message_json);
-    task_template.push_str("\n\n");
-    task_template
+    moderator_template.push_str("\n\n## Format \n\n");
+    moderator_template.push_str("Input format as valid JSON: \n\n");
+    moderator_template.push_str(&input_message_json);
+    moderator_template.push_str("\n\n");
+    moderator_template.push_str("Output format as valid JSON: \n\n");
+    moderator_template.push_str(&output_message_json);
+    moderator_template.push_str("\n\n");
+    moderator_template
 }
 
 impl Moderator {

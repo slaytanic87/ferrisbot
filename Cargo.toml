@@ -4,17 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.98"
-async-trait = "0.1.88"
+anyhow = "1.0.100"
+async-trait = "0.1.89"
 dotenvy = "0.15.7"
 json2markdown = "0.2.1"
 log = "0.4.27"
 mobot = { git = "https://github.com/slaytanic87/mobot", tag = "0.4.0" }
-ollama-rs = { version = "0.3.2", features = ["macros", "tool-implementations",  "stream", "headers"] }
-regex = "1.11.1"
+ollama-rs = { version = "0.3.3", features = ["macros", "tool-implementations",  "stream", "headers"] }
+regex = "1.12.2"
 reqwest = "0.12.22"
-schemars = "1.0.4"
-scraper = "0.23.1"
-serde = "1.0.219"
-serde_json = "1.0.140"
-tokio = "1.46.1"
+schemars = "1.1.0"
+scraper = "0.24.0"
+serde = "1.0.228"
+serde_json = "1.0.145"
+tokio = "1.48.0"
