@@ -1,5 +1,3 @@
-use std::env;
-
 use crate::{
     application::{
         self,
@@ -7,7 +5,7 @@ use crate::{
             self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
             MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
         },
-        MessageInput, ModeratorMessage,
+        UserMessage, ModeratorMessage,
     },
     Assistant, Moderator, UserManagement,
 };
@@ -57,13 +55,10 @@ impl BotController {
             schema_for!(tools::MuteMemberParams),
         );
 
-        let mut user_management = UserManagement::new();
-        user_management.set_managed_chat_id(env::var("MANAGED_CHAT_ID)").ok());
-
         Self {
             moderator,
             assistant,
-            user_management,
+            user_management: UserManagement::new(),
             name: name.into(),
             bot_username: bot_username.into(),
         }
@@ -84,6 +79,7 @@ pub async fn inactive_users_action(
     let chat_id: i64 = event.update.chat_id()?;
 
     let managed_chat_id: Option<String> = bot_controller.user_management.managed_chat_id.clone();
+
     if managed_chat_id.is_some() && managed_chat_id.unwrap() == chat_id.to_string() {
         debug!(
             "This Chat {} is managed and this command is not designed for that purpose",
@@ -128,7 +124,7 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
         .api
         .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.to_string()))
         .await?;
-
+    bot_controller.user_management.set_managed_chat_id(Some(chat_id.to_string()));
     bot_controller.user_management.clear_administrators();
 
     admin_list.iter().for_each(|admin| {
@@ -252,13 +248,15 @@ pub async fn handle_chat_messages(
         last_activity_unix_time,
     );
 
-    let role: &str = bot_controller.user_management.determine_user_role(username.as_str());
+    let role: &str = bot_controller
+        .user_management
+        .determine_user_role(username.as_str());
 
     let text_message = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
         &bot_controller.name,
     );
-    let input = MessageInput {
+    let input = UserMessage {
         channel: topic.to_string(),
         user_role: role.to_string(),
         user_id: user_id.to_string(),
@@ -273,8 +271,8 @@ pub async fn handle_chat_messages(
         .await;
 
     if let Ok(reply_message) = reply_rs {
-        let message_str: ModeratorMessage = serde_json::from_str(&reply_message)?;
-        if message_str.message.contains(application::NO_ACTION) {
+        let message_json: ModeratorMessage = serde_json::from_str(&reply_message)?;
+        if message_json.message.contains(application::NO_ACTION) {
             return Ok(Action::Done);
         }
 
@@ -288,12 +286,12 @@ pub async fn handle_chat_messages(
             .await?;
 
         if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str.message)
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_json.message)
                 .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
-        return Ok(Action::ReplyText(message_str.message));
+        return Ok(Action::ReplyText(message_json.message));
     }
     Ok(Action::Done)
 }

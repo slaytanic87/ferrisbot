@@ -1,4 +1,4 @@
-use super::{MessageInput, ModeratorMessage};
+use super::{UserMessage, ModeratorMessage};
 use log::debug;
 use ollama_rs::{
     generation::{
@@ -12,7 +12,7 @@ use std::{collections::VecDeque, vec};
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 60;
 pub const NO_ACTION: &str = "NO_ACTION";
-pub const MODERATOR_PROMPT_FILE: &str = "./moderator_role_definition.md";
+pub const MODERATOR_PROMPT_FILE: &str = "./prompts/moderator_role_definition.md";
 
 #[derive(Clone, Default)]
 pub struct HistoryBuffer {
@@ -67,13 +67,13 @@ pub struct Moderator {
 }
 
 fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
-    let input_message_json = serde_json::to_string(&MessageInput {
+    let input_message_json = serde_json::to_string(&UserMessage {
         channel: String::from("<Name of the channel>"),
         user_role: String::from("<Role of the user in the chat>"),
         user_id: String::from("<User identity as numbers>"),
         chat_id: String::from("<Chat identity as numbers>"),
-        user: String::from("<Name of the member>"),
-        message: String::from("<Text message>"),
+        user: String::from("<Name of the User>"),
+        message: String::from("<User message>"),
     })
     .unwrap();
     let output_message_json = serde_json::to_string(&ModeratorMessage {
@@ -84,23 +84,15 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     })
     .unwrap();
 
-    let no_action_message = serde_json::to_string(&ModeratorMessage {
-        moderator: name.to_string(),
-        message: format!("[{NO_ACTION}]"),
-        user_id: String::from("<User identity of the user who sent the message to the moderator>"),
-        chat_id: String::from("<Chat identity where the moderator and the users are in>"),
-    })
-    .unwrap();
-
     let mut moderator_template: String = prompt_template
         .trim()
         .replace("{name}", name)
-        .replace("{NO_ACTION}", no_action_message.as_str());
-    moderator_template.push_str("\n\n## Format \n\n");
-    moderator_template.push_str("Input format as valid JSON: \n\n");
+        .replace("{NO_ACTION}", format!("[{NO_ACTION}]").as_str());
+    moderator_template.push_str("\n\n## Conversation Schemas\n\n");
+    moderator_template.push_str("### Request schema as valid JSON \n\n");
     moderator_template.push_str(&input_message_json);
     moderator_template.push_str("\n\n");
-    moderator_template.push_str("Output format as valid JSON: \n\n");
+    moderator_template.push_str("### Response schema as valid JSON: \n\n");
     moderator_template.push_str(&output_message_json);
     moderator_template.push_str("\n\n");
     moderator_template
@@ -142,10 +134,10 @@ impl Moderator {
             .send_chat_messages_with_history(
                 &mut history,
                 ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message])
+                    .think(false)
                     .format(FormatType::Json),
             )
             .await?;
-
         debug!("History: {:#?}", history);
         self.history_buffer.set_message_adjust_buffer(history);
         Ok(response.message.content)
@@ -153,7 +145,7 @@ impl Moderator {
 
     pub async fn summarize_chat(&self, topic: &str) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(format!(
-            "Only summarize the conversations from the channel: {} in german language please. Please don't mention the channel name in the summary.",
+            "Only summarize the conversations from the channel: {}. Don't mention the channel name in the summary.",
             topic
         ));
         let mut history = self.history_buffer.get_chat_history_only();
@@ -162,7 +154,9 @@ impl Moderator {
 
         let response = self
             .ollama
-            .send_chat_messages(ChatMessageRequest::new(self.model_name.to_owned(), history))
+            .send_chat_messages(
+                ChatMessageRequest::new(self.model_name.to_owned(), history).think(false),
+            )
             .await?;
         Ok(response.message.content)
     }
@@ -180,6 +174,7 @@ impl Moderator {
             .ollama
             .send_chat_messages(
                 ChatMessageRequest::new(self.model_name.to_owned(), history)
+                    .think(false)
                     .format(FormatType::Json),
             )
             .await?;
@@ -256,23 +251,25 @@ mod moderator_test {
         let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
         init_logger();
         let channel_id = "Play & Fun";
-        let mut message1 = serde_json::to_string(&MessageInput {
-                channel: channel_id.to_string(),
-                user_role: "Regular User".to_string(),
-                user: "Kevin".to_string(),
-                user_id: "123".to_string(),
-                chat_id: "56789".to_string(),
-                message: "Was will Steffen von uns?".to_string(),
-            }).unwrap();
+        let mut message1 = serde_json::to_string(&UserMessage {
+            channel: channel_id.to_string(),
+            user_role: "Regular User".to_string(),
+            user: "Kevin".to_string(),
+            user_id: "123".to_string(),
+            chat_id: "56789".to_string(),
+            message: "Was will Steffen von uns?".to_string(),
+        })
+        .unwrap();
         let _ = moderator.chat_forum(message1.as_str()).await;
-        message1 = serde_json::to_string(&MessageInput {
-                channel: channel_id.to_string(),
-                user_role: "Admin".to_string(),
-                user: "LL".to_string(),
-                user_id: "1".to_string(),
-                chat_id: "56339".to_string(),
-                message: "Hey Kevin, lasst es doch sein darüber zu lästern".to_string(),
-            }).unwrap();
+        message1 = serde_json::to_string(&UserMessage {
+            channel: channel_id.to_string(),
+            user_role: "Admin".to_string(),
+            user: "LL".to_string(),
+            user_id: "1".to_string(),
+            chat_id: "56339".to_string(),
+            message: "Hey Kevin, lasst es doch sein darüber zu lästern".to_string(),
+        })
+        .unwrap();
         let rs = moderator.chat_forum(message1.as_str()).await;
         if let Ok(res) = rs {
             debug!("{}", res);

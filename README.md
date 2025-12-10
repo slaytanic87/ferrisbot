@@ -45,7 +45,6 @@ export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
 export BOT_NAME = "<Name of the bot>"
 export BOT_USERNAME = "<Telegram username of the bot>"
-export MANAGED_CHAT_ID = "<Chat id of the group which should be managed by the bot>"
 ```
 
 ## Define Bot Task

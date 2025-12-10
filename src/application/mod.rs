@@ -12,7 +12,7 @@ pub use moderator_agent::NO_ACTION;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct MessageInput {
+pub struct UserMessage {
     pub channel: String,
     pub user_role: String,
     pub user_id: String,

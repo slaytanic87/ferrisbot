@@ -14,7 +14,7 @@ use crate::application::tools::execute_tool;
 
 use super::{ModeratorMessage, NO_ACTION};
 
-pub const ASSISTANT_PROMPT_FILE: &str = "./assistant_role_definition.md";
+pub const ASSISTANT_PROMPT_FILE: &str = "./prompts/assistant_role_definition.md";
 
 #[derive(Clone, Default)]
 pub struct Assistant {
@@ -91,7 +91,8 @@ impl Assistant {
                     self.model_name.to_owned(),
                     vec![ChatMessage::user(input.to_string())],
                 )
-                .tools(self.tool_infos.clone()),
+                .tools(self.tool_infos.clone())
+                .think(false),
             )
             .await?;
         debug!("History: {:#?}", history);
@@ -107,10 +108,10 @@ impl Assistant {
             }
             let final_response = self
                 .ollama
-                .send_chat_messages(ChatMessageRequest::new(
-                    self.model_name.to_owned(),
-                    history.clone(),
-                ))
+                .send_chat_messages(
+                    ChatMessageRequest::new(self.model_name.to_owned(), history.clone())
+                        .think(false),
+                )
                 .await?;
             debug!("Response from tool - History: {:#?}", history);
             return Ok(final_response.message.content);
@@ -165,10 +166,12 @@ mod assistant_test {
                 .to_string(),
         };
         let input_json = serde_json::to_string(&request).unwrap();
-        let response = assistant.validate_and_execute_instruction_chat(input_json.as_str()).await;
+        let response = assistant
+            .validate_and_execute_instruction_chat(input_json.as_str())
+            .await;
 
         let Ok(res) = response else {
-            panic!("Failed to get response2");
+            panic!("Failed to get response");
         };
         debug!("Response: {}", res);
     }
