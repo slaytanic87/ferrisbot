@@ -16,7 +16,7 @@ fn read_prompt_template(path: &str) -> String {
 async fn main() {
     dotenvy::dotenv().ok();
     mobot::init_logger();
-    let bot_name = env::var("BOT_NAME").unwrap_or_else(|_| "Kate".to_string());
+    let bot_name = env::var("BOT_NAME").unwrap_or_else(|_| "Ferrisbot".to_string());
     let bot_username = env::var("BOT_USERNAME").unwrap_or_else(|_| "FerrisModBot".to_string());
     let commands = vec![
         BotCommand {
