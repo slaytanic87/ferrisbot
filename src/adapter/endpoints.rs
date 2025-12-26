@@ -384,7 +384,7 @@ fn extract_username_chat_attribute(json: &Option<Value>) -> String {
         .to_string()
 }
 
-fn extract_time(str: String) -> Option<u64> {
+fn extract_time_seconds(str: String) -> Option<u64> {
     let time_reg = Regex::new(r"\s[0-9]+[m,h,d]{1}\s").unwrap();
     let capture = time_reg.captures(str.as_str());
     let time_str: &str = capture.as_ref()?.get(0).unwrap().as_str().trim();
@@ -439,7 +439,7 @@ pub async fn mute_user_action(
         return Ok(Action::Done);
     }
 
-    let time_opt: Option<u64> = extract_time(message.unwrap_or_default());
+    let time_opt: Option<u64> = extract_time_seconds(message.unwrap_or_default());
     if time_opt.is_none() {
         debug!("No valid time parameter found to mute user. Following format is supported: /mute 10m, 2h, 1d");
         if let Some(thread_id) = message_thread_id {
