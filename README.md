@@ -45,6 +45,7 @@ export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
 export BOT_NAME = "<Name of the bot>"
 export BOT_USERNAME = "<Telegram username of the bot>"
+export FILE_DB_PATH = "<Path to store bot memory state file>"
 ```
 
 ## Define Bot Task

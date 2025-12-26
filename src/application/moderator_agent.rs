@@ -1,4 +1,4 @@
-use super::{UserMessage, ModeratorMessage};
+use super::{ModeratorMessage, UserMessage};
 use log::debug;
 use ollama_rs::{
     generation::{
@@ -77,8 +77,19 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     })
     .unwrap();
     let output_message_json = serde_json::to_string(&ModeratorMessage {
-        moderator: String::from("<Name of the moderator>"),
-        message: String::from("<Moderator message>"),
+        moderator: String::from("<Your moderator name>"),
+        message: format!(
+            "<Your message to the user or {} if no response needed>",
+            format!("[{NO_ACTION}]").as_str()
+        ),
+        user_id: String::from("<User identity of the user who sent the message to the moderator>"),
+        chat_id: String::from("<Chat identity where moderator and user chat together>"),
+    })
+    .unwrap();
+
+    let no_action_json = serde_json::to_string(&ModeratorMessage {
+        moderator: String::from("<Your moderator name>"),
+        message: format!("[{NO_ACTION}]"),
         user_id: String::from("<User identity of the user who sent the message to the moderator>"),
         chat_id: String::from("<Chat identity where moderator and user chat together>"),
     })
@@ -87,12 +98,12 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     let mut moderator_template: String = prompt_template
         .trim()
         .replace("{name}", name)
-        .replace("{NO_ACTION}", format!("[{NO_ACTION}]").as_str());
+        .replace("{NO_ACTION}", no_action_json.as_str());
     moderator_template.push_str("\n\n## Conversation Schemas\n\n");
-    moderator_template.push_str("### Request schema as valid JSON \n\n");
+    moderator_template.push_str("## Request Schema as valid JSON \n\n");
     moderator_template.push_str(&input_message_json);
     moderator_template.push_str("\n\n");
-    moderator_template.push_str("### Response schema as valid JSON: \n\n");
+    moderator_template.push_str("## Response Schema as valid JSON \n\n");
     moderator_template.push_str(&output_message_json);
     moderator_template.push_str("\n\n");
     moderator_template
@@ -221,7 +232,7 @@ mod moderator_test {
             .await;
 
         let rs5 = moderator
-            .chat_forum(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "56789", "user": "Kevin", "message": "ich frage mich wo Fuffi ist?" }"#)
+            .chat_forum(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "56789", "user": "Kevin", "message": "ich frage mich wo Gerd ist?" }"#)
             .await;
 
         if let Ok(res) = rs1 {

@@ -1,48 +1,18 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, SystemTime},
-};
+use std::time::{Duration, SystemTime};
 
 use log::debug;
 
-#[derive(Clone, Default, Debug)]
-pub struct UserEntity {
-    pub user_id: i64,
-    pub username: String,
-    pub firstname: String,
-    pub last_activity_unix_time: u64,
-}
-
-impl UserEntity {
-    pub fn new(
-        user_id: i64,
-        username: &str,
-        firstname: &str,
-        last_activity_unix_time: u64,
-    ) -> Self {
-        Self {
-            user_id,
-            username: username.to_string(),
-            firstname: firstname.to_string(),
-            last_activity_unix_time,
-        }
-    }
-}
+use crate::adapter::{BotDatabase, UserEntity};
 
 #[derive(Clone, Default)]
 pub struct UserManagement {
-    user_map: HashMap<String, UserEntity>,
-    administrators: Vec<String>,
-    pub managed_chat_id: Option<String>,
+    pub bot_db: BotDatabase,
 }
 
 impl UserManagement {
     pub fn new() -> Self {
-        Self {
-            user_map: HashMap::new(),
-            administrators: Vec::new(),
-            managed_chat_id: None,
-        }
+        let bot_db = BotDatabase::try_init();
+        Self { bot_db }
     }
 
     pub fn add_user(
@@ -53,7 +23,10 @@ impl UserManagement {
         last_activity_unix_time: u64,
     ) {
         let user_entity = UserEntity::new(user_id, username, firstname, last_activity_unix_time);
-        self.user_map.insert(username.to_string(), user_entity);
+        self.bot_db
+            .bot_memory
+            .user_map
+            .insert(user_id.to_string(), user_entity);
     }
 
     pub fn get_inactive_users_since(&self, duration: Duration) -> Vec<UserEntity> {
@@ -61,15 +34,17 @@ impl UserManagement {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        self.user_map
+        self.bot_db
+            .bot_memory
+            .user_map
             .values()
             .filter(|user| current_time - user.last_activity_unix_time > duration.as_secs())
             .cloned()
             .collect()
     }
 
-    pub fn remove_user(&mut self, username: &str) {
-        self.user_map.remove(username);
+    pub fn remove_user(&mut self, user_id: i64) {
+        self.bot_db.bot_memory.user_map.remove(&user_id.to_string());
     }
 
     pub fn update_user_activity(
@@ -79,31 +54,59 @@ impl UserManagement {
         user_id: i64,
         last_activity_unix_time: u64,
     ) {
-        if let Some(user_entity) = self.user_map.get_mut(username) {
+        if let Some(user_entity) = self
+            .bot_db
+            .bot_memory
+            .user_map
+            .get_mut(&user_id.to_string())
+        {
             user_entity.last_activity_unix_time = last_activity_unix_time;
             user_entity.firstname = firstname.to_string();
             user_entity.user_id = user_id;
-            return;
+        } else if let Some((index, _)) = self.get_user_by_name(username) {
+            self.remove_user(index.parse().unwrap());
+            self.add_user(user_id, username, firstname, last_activity_unix_time);
+        } else {
+            self.add_user(user_id, username, firstname, last_activity_unix_time);
         }
-        self.add_user(user_id, username, firstname, last_activity_unix_time);
-        debug!("Usermap {:?}", self.user_map.values());
+        self.persist();
+        debug!("Usermap {:?}", self.bot_db.bot_memory.user_map.values());
     }
 
-    pub fn contains_user(&self, username: &str) -> bool {
-        self.user_map.contains_key(username)
+    pub fn contains_username(&self, username: &str) -> bool {
+        self.bot_db
+            .bot_memory
+            .user_map
+            .iter()
+            .any(|(_, user)| user.username == username)
     }
 
-    pub fn get_user(&self, username: &str) -> Option<&UserEntity> {
-        self.user_map.get(username)
+    pub fn get_user_by_name(&self, username: &str) -> Option<(&String, &UserEntity)> {
+        self.bot_db
+            .bot_memory
+            .user_map
+            .iter()
+            .find_map(|(index, user)| {
+                if user.username == username {
+                    Some((index, user))
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn register_administrator(&mut self, username: String) {
         debug!("Registering administrator: {}", username);
-        self.administrators.push(username);
+        self.bot_db.bot_memory.administrators.push(username);
     }
 
     pub fn determine_user_role(&self, username: &str) -> &str {
-        if self.administrators.contains(&username.to_string()) {
+        if self
+            .bot_db
+            .bot_memory
+            .administrators
+            .contains(&username.to_string())
+        {
             "Admin"
         } else {
             "Regular User"
@@ -111,14 +114,23 @@ impl UserManagement {
     }
 
     pub fn is_administrator(&self, username: &str) -> bool {
-        self.administrators.contains(&username.to_string())
+        self.bot_db
+            .bot_memory
+            .administrators
+            .contains(&username.to_string())
     }
 
     pub fn clear_administrators(&mut self) {
-        self.administrators.clear();
+        self.bot_db.bot_memory.administrators.clear();
     }
 
     pub fn set_managed_chat_id(&mut self, chat_id: Option<String>) {
-        self.managed_chat_id = chat_id;
+        self.bot_db.bot_memory.managed_chat_id = chat_id;
+    }
+
+    pub fn persist(&mut self) {
+        if let Err(e) = self.bot_db.save() {
+            debug!("Could not save cause: {}", e);
+        }
     }
 }

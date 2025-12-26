@@ -5,7 +5,7 @@ use crate::{
             self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
             MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
         },
-        UserMessage, ModeratorMessage,
+        ModeratorMessage, UserMessage,
     },
     Assistant, Moderator, UserManagement,
 };
@@ -17,6 +17,7 @@ use mobot::{
     },
     Action, BotState, Event, State,
 };
+use regex::Regex;
 use schemars::schema_for;
 use serde_json::Value;
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
@@ -78,7 +79,12 @@ pub async fn inactive_users_action(
         .get_inactive_users_since(std::time::Duration::from_secs(months_in_secs));
     let chat_id: i64 = event.update.chat_id()?;
 
-    let managed_chat_id: Option<String> = bot_controller.user_management.managed_chat_id.clone();
+    let managed_chat_id: Option<String> = bot_controller
+        .user_management
+        .bot_db
+        .bot_memory
+        .managed_chat_id
+        .clone();
 
     if managed_chat_id.is_some() && managed_chat_id.unwrap() == chat_id.to_string() {
         debug!(
@@ -112,19 +118,21 @@ pub async fn inactive_users_action(
 
 pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Action, anyhow::Error> {
     let mut bot_controller = state.get().write().await;
-    let chat_type = event.update.get_message()?.clone().chat.chat_type;
+    let chat_type: String = event.update.get_message()?.clone().chat.chat_type;
 
     if chat_type == "private" {
         return Ok(Action::Done);
     }
 
-    let message_date_unix = event.update.get_message()?.clone().date;
+    let message_date_unix: i64 = event.update.get_message()?.clone().date;
     let chat_id: &str = &event.update.get_message()?.chat.id.to_string();
     let admin_list = event
         .api
         .get_chat_administrators(&GetChatAdministratorsRequest::new(chat_id.to_string()))
         .await?;
-    bot_controller.user_management.set_managed_chat_id(Some(chat_id.to_string()));
+    bot_controller
+        .user_management
+        .set_managed_chat_id(Some(chat_id.to_string()));
     bot_controller.user_management.clear_administrators();
 
     admin_list.iter().for_each(|admin| {
@@ -147,14 +155,21 @@ pub async fn init_bot(event: Event, state: State<BotController>) -> Result<Actio
         .await?;
 
     if let Some(active_usernames) = chat_full_info_list.active_usernames {
-        active_usernames.iter().for_each(|username: &String| {
-            if !bot_controller.user_management.contains_user(username) {
-                bot_controller
-                    .user_management
-                    .add_user(-1, username, "", message_date_unix as u64);
-            }
-        });
+        active_usernames
+            .iter()
+            .enumerate()
+            .for_each(|(index, username): (usize, &String)| {
+                if !bot_controller.user_management.contains_username(username) {
+                    bot_controller.user_management.add_user(
+                        index as i64,
+                        username,
+                        "",
+                        message_date_unix as u64,
+                    );
+                }
+            });
     }
+    bot_controller.user_management.persist();
 
     Ok(Action::Done)
 }
@@ -218,7 +233,12 @@ pub async fn handle_chat_messages(
         return Ok(Action::Done);
     }
 
-    let managed_chat_id: Option<String> = bot_controller.user_management.managed_chat_id.clone();
+    let managed_chat_id: Option<String> = bot_controller
+        .user_management
+        .bot_db
+        .bot_memory
+        .managed_chat_id
+        .clone();
     if managed_chat_id.is_some() && managed_chat_id.unwrap() != chat_id.to_string() {
         debug!(
             "Chat {} is not registered as managed chat, so it's ignored",
@@ -227,7 +247,7 @@ pub async fn handle_chat_messages(
         return Ok(Action::Done);
     }
 
-    let topic = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
+    let topic: &str = if let Some(reply_to_message) = reply_to_message_opt.as_ref() {
         reply_to_message
             .get("forum_topic_created")
             .unwrap()
@@ -252,7 +272,7 @@ pub async fn handle_chat_messages(
         .user_management
         .determine_user_role(username.as_str());
 
-    let text_message = &message.unwrap().replace(
+    let text_message: &String = &message.unwrap().replace(
         format!("@{}", bot_controller.bot_username).as_str(),
         &bot_controller.name,
     );
@@ -286,8 +306,9 @@ pub async fn handle_chat_messages(
             .await?;
 
         if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_json.message)
-                .with_message_thread_id(thread_id);
+            let message_re =
+                &SendMessageRequest::new(event.update.chat_id()?, message_json.message)
+                    .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
@@ -326,7 +347,8 @@ pub async fn chat_summarize_action(
         })
         .await?;
 
-    let summarize_message_rs = bot_controller.moderator.summarize_chat(topic).await;
+    let summarize_message_rs: Result<String, anyhow::Error> =
+        bot_controller.moderator.summarize_chat(topic).await;
     if let Ok(summary) = summarize_message_rs {
         if let Some(thread_id) = message_thread_id {
             let message_re = &SendMessageRequest::new(event.update.chat_id()?, summary)
@@ -362,6 +384,27 @@ fn extract_username_chat_attribute(json: &Option<Value>) -> String {
         .to_string()
 }
 
+fn extract_time(str: String) -> Option<u64> {
+    let time_reg = Regex::new(r"\s[0-9]+[m,h,d]{1}\s").unwrap();
+    let capture = time_reg.captures(str.as_str());
+    let time_str: &str = capture.as_ref()?.get(0).unwrap().as_str().trim();
+    match time_str.chars().last().unwrap() {
+        'm' => {
+            let mins: u64 = time_str[..time_str.len() - 1].parse().unwrap();
+            Some(mins * 60)
+        }
+        'h' => {
+            let hours: u64 = time_str[..time_str.len() - 1].parse().unwrap();
+            Some(hours * 60 * 60)
+        }
+        'd' => {
+            let days: u64 = time_str[..time_str.len() - 1].parse().unwrap();
+            Some(days * 24 * 60 * 60)
+        }
+        _ => None
+    }
+}
+
 pub async fn mute_user_action(
     event: Event,
     state: State<BotController>,
@@ -369,7 +412,7 @@ pub async fn mute_user_action(
     let user_opt: Option<String> = event.update.from_user()?.clone().username;
     let reply_to_message_opt = &event.update.get_message()?.clone().reply_to_message;
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
-
+    let message = event.update.get_message()?.clone().text;
     if reply_to_message_opt.is_none() {
         debug!("No reply to message object has been found");
         return Ok(Action::Done);
@@ -384,7 +427,7 @@ pub async fn mute_user_action(
         .user_management
         .is_administrator(username.as_str())
     {
-        debug!("User {} don't have admin rights to mute", username);
+        debug!("User {} don't have admin permission to mute", username);
         return Ok(Action::Done);
     }
 
@@ -392,11 +435,26 @@ pub async fn mute_user_action(
         .user_management
         .is_administrator(username_be_muted.as_str())
     {
-        debug!("User {} is admin, can't mute", username_be_muted);
+        debug!("User {} is admin, can't be muted", username_be_muted);
         return Ok(Action::Done);
     }
 
-    let mute_time_60s: i64 = event.update.get_message()?.clone().date + 60;
+    let time_opt: Option<u64> = extract_time(message.unwrap_or_default());
+    if time_opt.is_none() {
+        debug!("No valid time parameter found to mute user. Following format is supported: /mute 10m, 2h, 1d");
+        if let Some(thread_id) = message_thread_id {
+            let message_re = &SendMessageRequest::new(
+                event.update.chat_id()?,
+                "No valid time parameter found to mute user. Following format is supported: /mute 10m, 2h, 1d",
+            )
+            .with_message_thread_id(thread_id);
+            event.api.send_message(message_re).await?;
+        }
+        return Ok(Action::ReplyText("No valid time parameter found to mute user. Following format is supported: /mute 10m, 2h, 1d".into()));
+    }
+    let time_secs: u64 = time_opt.unwrap();
+
+    let mute_time_60s: i64 = event.update.get_message()?.clone().date + time_secs as i64;
 
     let restrict_chat_req = RestrictChatMemberRequest {
         chat_id: event.update.get_message()?.clone().chat.id.to_string(),
@@ -434,9 +492,9 @@ pub async fn mute_user_action(
         )
         .with_message_thread_id(thread_id);
         event.api.send_message(message_re).await?;
+        return Ok(Action::Done);
     }
-
-    Ok(Action::Done)
+    Ok(Action::ReplyText(format!("@{} You are muted now!", username_be_muted)))
 }
 
 pub async fn unmute_user_action(

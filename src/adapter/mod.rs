@@ -1,4 +1,7 @@
+mod database_repository;
 mod endpoints;
+pub use database_repository::BotDatabase;
+pub use database_repository::UserEntity;
 pub use endpoints::bot_greeting_action;
 pub use endpoints::chat_summarize_action;
 pub use endpoints::handle_chat_messages;
