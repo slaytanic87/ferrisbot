@@ -61,6 +61,7 @@ impl UserManagement {
             .get_mut(&user_id.to_string())
         {
             user_entity.last_activity_unix_time = last_activity_unix_time;
+            user_entity.username = username.to_string();
             user_entity.firstname = firstname.to_string();
             user_entity.user_id = user_id;
         } else if let Some((index, _)) = self.get_user_by_name(username) {
