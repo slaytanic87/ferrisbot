@@ -98,23 +98,25 @@ impl Assistant {
         debug!("History: {:#?}", history);
 
         if !response.message.tool_calls.is_empty() {
-            for call in response.message.tool_calls {
-                let args = call.function.arguments;
-                let name: String = call.function.name;
-                let rs = execute_tool(name.as_str(), args).await;
+            let mut final_response_str: String = String::new();
+            for call in &response.message.tool_calls {
+                let args = &call.function.arguments;
+                let name: String = call.function.name.clone();
+                let rs = execute_tool(name.as_str(), args.clone()).await;
                 if let Ok(tool_rs) = rs {
+                    history.push(response.message.clone());
                     history.push(ChatMessage::tool(tool_rs));
+                    let final_response = self
+                        .ollama
+                        .send_chat_messages(
+                            ChatMessageRequest::new(self.model_name.to_owned(), history.clone())
+                                .think(false),
+                        ).await?;
+                    final_response_str.push_str(format!("{}/n", &final_response.message.content).as_str());
                 }
             }
-            let final_response = self
-                .ollama
-                .send_chat_messages(
-                    ChatMessageRequest::new(self.model_name.to_owned(), history.clone())
-                        .think(false),
-                )
-                .await?;
             debug!("Response from tool - History: {:#?}", history);
-            return Ok(final_response.message.content);
+            return Ok(final_response_str);
         }
         Ok(response.message.content)
     }
