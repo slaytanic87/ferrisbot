@@ -58,7 +58,7 @@ impl BotController {
 
         Self {
             moderator,
-            assistant,
+            _assistant: assistant,
             user_management: UserManagement::new(),
             name: name.into(),
             bot_username: bot_username.into(),
