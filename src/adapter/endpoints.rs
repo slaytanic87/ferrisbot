@@ -25,7 +25,7 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
     moderator: Moderator,
-    assistant: Assistant,
+    _assistant: Assistant,
     user_management: UserManagement,
     name: String,
     bot_username: String,
