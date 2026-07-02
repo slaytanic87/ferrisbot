@@ -25,7 +25,6 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
     moderator: Moderator,
-    _assistant: Assistant,
     user_management: UserManagement,
     name: String,
     bot_username: String,
@@ -36,29 +35,11 @@ impl BotController {
         name: &str,
         bot_username: &str,
         task_template: &str,
-        tool_prompt_template: &str,
     ) -> Self {
         let moderator = Moderator::new(name, task_template);
-        let mut assistant = Assistant::new(tool_prompt_template);
-        assistant.add_tool(
-            WEB_SEARCH.to_string(),
-            WEB_SEARCH_DESCRIPTION.to_string(),
-            schema_for!(tools::WebSearchParams),
-        );
-        assistant.add_tool(
-            KICK_USER_WITHOUTBAN.to_string(),
-            KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
-            schema_for!(tools::KickUserParams),
-        );
-        assistant.add_tool(
-            MUTE_MEMBER.to_string(),
-            MUTE_MEMBER_DESCRIPTION.to_string(),
-            schema_for!(tools::MuteMemberParams),
-        );
 
         Self {
             moderator,
-            _assistant: assistant,
             user_management: UserManagement::new(),
             name: name.into(),
             bot_username: bot_username.into(),

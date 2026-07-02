@@ -63,6 +63,25 @@ impl Assistant {
         }
     }
 
+    /**
+     * example usage:
+     *  let mut assistant = Assistant::new(tool_prompt_template);
+     *  assistant.add_tool(
+     *     WEB_SEARCH.to_string(),
+     *     WEB_SEARCH_DESCRIPTION.to_string(),
+     *      schema_for!(tools::WebSearchParams),
+     *  );
+     *  assistant.add_tool(
+     *     KICK_USER_WITHOUTBAN.to_string(),
+     *     KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
+     *      schema_for!(tools::KickUserParams),
+     *  );
+     *  assistant.add_tool(
+     *     MUTE_MEMBER.to_string(),
+     *     MUTE_MEMBER_DESCRIPTION.to_string(),
+     *      schema_for!(tools::MuteMemberParams),
+     *  );
+     */
     pub fn add_tool(&mut self, name: String, description: String, parameters: Schema) {
         let tool_info = ToolInfo {
             tool_type: ToolType::Function,

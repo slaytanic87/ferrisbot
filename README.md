@@ -14,7 +14,7 @@ Download and install Ollama
 
 [Download URL](https://ollama.com/download)
 
-### setup LLM modell
+### setup LLM model
 
 **examples:**
 
@@ -32,7 +32,7 @@ mistral-nemo 12B
 ollama run mistral-nemo:12b
 ```
 
-**Remember: The models must have _tool_ support and if it works well or not depends on the model of your choice!**
+**Remember: The quality of the bot depends on the model of your choice!**
 
 ## Setup Telegram bot token & parameters
 
@@ -99,6 +99,10 @@ cargo run
 export RUST_LOG="debug"
 cargo test -- --nocapture
 ```
+
+### Future features
+
+- Supporting chat actions e.g ban, mute users etc
 
 ### Notes
 
