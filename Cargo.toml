@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 async-trait = "0.1.89"
 dotenvy = "0.15.7"
 json2markdown = "0.2.1"
-log = "0.4.30"
-mobot = { git = "https://github.com/slaytanic87/mobot", tag = "0.4.0" }
+log = "0.4.33"
+mobot = { git = "https://github.com/slaytanic87/mobot", tag = "0.4.2" }
 ollama-rs = { version = "0.3.4", features = ["macros", "tool-implementations",  "stream", "headers"] }
-regex = "1.12.3"
+regex = "1.12.4"
 reqwest = "0.13.4"
 schemars = "1.2.1"
 scraper = "0.27.0"
