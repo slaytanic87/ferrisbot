@@ -1,4 +1,3 @@
-use super::{ModeratorMessage, UserMessage};
 use log::debug;
 use ollama_rs::{
     generation::{
@@ -67,44 +66,38 @@ pub struct Moderator {
 }
 
 fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
-    let input_message_json = serde_json::to_string(&UserMessage {
-        channel: String::from("<Name of the channel>"),
-        user_role: String::from("<Role of the user in the chat>"),
-        user_id: String::from("<User identity as numbers>"),
-        chat_id: String::from("<Chat identity as numbers>"),
-        user: String::from("<Name of the User>"),
-        message: String::from("<User message>"),
-    })
-    .unwrap();
-    let output_message_json = serde_json::to_string(&ModeratorMessage {
-        moderator: String::from("<Your moderator name>"),
-        message: format!(
-            "<Your message to the user or {} if no response needed>",
-            format!("[{NO_ACTION}]").as_str()
-        ),
-        user_id: String::from("<User identity of the user who sent the message to the moderator>"),
-        chat_id: String::from("<Chat identity where moderator and user chat together>"),
-    })
-    .unwrap();
+    let input_message_json_format = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "channel": { "type": "string", "description": "Name of the channel" },
+            "user_role": { "type": "string", "description": "Role of the user in the chat" },
+            "user_id": { "type": "string", "description": "User identity as numbers" },
+            "chat_id": { "type": "string", "description": "Chat identity as numbers" },
+            "user": { "type": "string", "description": "Name of the User" },
+            "message": { "type": "string", "description": "User message" }
+        },
+        "required": ["channel", "user_role", "user_id", "chat_id", "user", "message"]
+    });
 
-    let no_action_json = serde_json::to_string(&ModeratorMessage {
-        moderator: String::from("<Your moderator name>"),
-        message: format!("[{NO_ACTION}]"),
-        user_id: String::from("<User identity of the user who sent the message to the moderator>"),
-        chat_id: String::from("<Chat identity where moderator and user chat together>"),
-    })
-    .unwrap();
+    let output_message_json_format = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "moderator": { "type": "string", "description": "Name of the moderator" },
+            "message": { "type": "string", "description": format!("Moderator message or {} if moderator should not respond", NO_ACTION) },
+            "user_id": { "type": "string", "description": "User identity as numbers" },
+            "chat_id": { "type": "string", "description": "Chat identity as numbers" }
+        },
+        "required": ["moderator", "message", "user_id", "chat_id"]
+    });
 
     let mut moderator_template: String = prompt_template
         .trim()
         .replace("{name}", name)
-        .replace("{NO_ACTION}", no_action_json.as_str());
     moderator_template.push_str("\n\n## Conversation Schemas\n\n");
-    moderator_template.push_str("## Request Schema as valid JSON \n\n");
-    moderator_template.push_str(&input_message_json);
+    moderator_template.push_str("Always response with valiad JSON conforming schemas below. Do not include any text outside the JSON objects.\n\n");
+    moderator_template.push_str(format!("### Request message conforming this valid schema \n\n{}", input_message_json_format).as_str());
     moderator_template.push_str("\n\n");
-    moderator_template.push_str("## Response Schema as valid JSON \n\n");
-    moderator_template.push_str(&output_message_json);
+    moderator_template.push_str(format!("### Response message conforming this valid schema \n\n{}", output_message_json_format).as_str());
     moderator_template.push_str("\n\n");
     moderator_template
 }
