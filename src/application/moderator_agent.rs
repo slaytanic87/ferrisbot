@@ -204,6 +204,7 @@ mod moderator_test {
     use mobot::init_logger;
 
     use crate::application::moderator_agent::{Moderator, MODERATOR_PROMPT_FILE};
+    use crate::application::UserMessage;
 
     use super::*;
 
