@@ -66,7 +66,7 @@ pub struct Moderator {
 }
 
 fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
-    let input_message_json_format = serde_json::json!({
+    let input_message_json_schema = serde_json::json!({
         "type": "object",
         "properties": {
             "channel": { "type": "string", "description": "Name of the channel" },
@@ -79,7 +79,7 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         "required": ["channel", "user_role", "user_id", "chat_id", "user", "message"]
     });
 
-    let output_message_json_format = serde_json::json!({
+    let output_message_json_schema = serde_json::json!({
         "type": "object",
         "properties": {
             "moderator": { "type": "string", "description": "Name of the moderator" },
@@ -95,9 +95,9 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         .replace("{name}", name)
     moderator_template.push_str("\n\n## Conversation Schemas\n\n");
     moderator_template.push_str("Always response with valiad JSON conforming schemas below. Do not include any text outside the JSON objects.\n\n");
-    moderator_template.push_str(format!("### Request message conforming this valid schema \n\n{}", input_message_json_format).as_str());
+    moderator_template.push_str(format!("### Request message conforming this valid schema \n\n{}", input_message_json_schema).as_str());
     moderator_template.push_str("\n\n");
-    moderator_template.push_str(format!("### Response message conforming this valid schema \n\n{}", output_message_json_format).as_str());
+    moderator_template.push_str(format!("### Response message conforming this valid schema \n\n{}", output_message_json_schema).as_str());
     moderator_template.push_str("\n\n");
     moderator_template
 }

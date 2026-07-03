@@ -12,7 +12,7 @@ use schemars::Schema;
 
 use crate::application::tools::execute_tool;
 
-use super::{ModeratorMessage, NO_ACTION};
+use super::NO_ACTION;
 
 pub const ASSISTANT_PROMPT_FILE: &str = "./prompts/assistant_role_definition.md";
 
@@ -25,22 +25,22 @@ pub struct Assistant {
 }
 
 fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
-    let input_message_json = serde_json::to_string(&ModeratorMessage {
-        moderator: String::from("<Name of the moderator>"),
-        message: String::from(
-            "<Message of the moderator where the instructions should be extracted>",
-        ),
-        user_id: String::from("<User id which moderator talking to>"),
-        chat_id: String::from("<Chat id of the current chat>"),
-    })
-    .unwrap();
-    let mut template = tool_prompt_template
+    let moderator_message_json_schema = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "moderator": { "type": "string", "description": "Name of the moderator" },
+            "message": { "type": "string", "description": format!("Moderator message or {} if there is no action needed", NO_ACTION) },
+            "user_id": { "type": "string", "description": "User identity as numbers" },
+            "chat_id": { "type": "string", "description": "Chat identity as numbers" }
+        },
+        "required": ["moderator", "message", "user_id", "chat_id"]
+    });
+
+    let mut template: String = tool_prompt_template
         .trim()
         .replace("{NO_ACTION}", NO_ACTION);
     template.push_str("\n\n");
-    template.push_str("Input message:");
-    template.push_str("\n\n");
-    template.push_str(&input_message_json);
+    template.push_str(format!("Input message:\n\n{}", moderator_message_json_schema).as_str());
     template
 }
 
