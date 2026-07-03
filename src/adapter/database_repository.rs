@@ -1,5 +1,10 @@
 use std::{
-    collections::HashMap, env, error::Error, fs::File, io::{BufReader, BufWriter, Write}, path::Path
+    collections::HashMap,
+    env,
+    error::Error,
+    fs::File,
+    io::{BufReader, BufWriter, Write},
+    path::Path,
 };
 
 use serde::{Deserialize, Serialize};

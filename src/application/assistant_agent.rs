@@ -36,22 +36,30 @@ fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
         "required": ["moderator", "message", "user_id", "chat_id"]
     });
 
-    let mut template: String = tool_prompt_template
-        .trim().to_string();
+    let mut template: String = tool_prompt_template.trim().to_string();
     template.push_str("\n\n");
-    template.push_str(format!("Input message JSON schema:\n\n{}", moderator_message_json_schema).as_str());
+    template.push_str(
+        format!(
+            "Input message JSON schema:\n\n{}",
+            moderator_message_json_schema
+        )
+        .as_str(),
+    );
     template
 }
 
 impl Assistant {
     pub fn new(tool_prompt_template: &str) -> Self {
-        let ollama_client = Ollama::new(
-            env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
-            env::var("OLLAMA_PORT")
-                .unwrap_or(String::from("11434"))
-                .parse()
-                .unwrap(),
-        );
+        let ollama_client = Ollama::builder()
+            .host(env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")))
+            .port(
+                env::var("OLLAMA_PORT")
+                    .unwrap_or(String::from("11434"))
+                    .parse()
+                    .unwrap(),
+            )
+            .build();
+
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         Self {
@@ -129,8 +137,10 @@ impl Assistant {
                         .send_chat_messages(
                             ChatMessageRequest::new(self.model_name.to_owned(), history.clone())
                                 .think(false),
-                        ).await?;
-                    final_response_str.push_str(format!("{}/n", &final_response.message.content).as_str());
+                        )
+                        .await?;
+                    final_response_str
+                        .push_str(format!("{}/n", &final_response.message.content).as_str());
                 }
             }
             debug!("Response from tool - History: {:#?}", history);

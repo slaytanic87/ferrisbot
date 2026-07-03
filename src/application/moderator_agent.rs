@@ -90,27 +90,39 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         "required": ["moderator", "message", "user_id", "chat_id"]
     });
 
-    let mut moderator_template: String = prompt_template
-        .trim()
-        .replace("{name}", name)
+    let mut moderator_template: String = prompt_template.trim().replace("{name}", name);
     moderator_template.push_str("\n\n## Conversation Schemas\n\n");
     moderator_template.push_str("Always response with valiad JSON conforming schemas below. Do not include any text outside the JSON objects.\n\n");
-    moderator_template.push_str(format!("### Request message conforming this valid schema \n\n{}", input_message_json_schema).as_str());
+    moderator_template.push_str(
+        format!(
+            "### Request message conforming this valid schema \n\n{}",
+            input_message_json_schema
+        )
+        .as_str(),
+    );
     moderator_template.push_str("\n\n");
-    moderator_template.push_str(format!("### Response message conforming this valid schema \n\n{}", output_message_json_schema).as_str());
+    moderator_template.push_str(
+        format!(
+            "### Response message conforming this valid schema \n\n{}",
+            output_message_json_schema
+        )
+        .as_str(),
+    );
     moderator_template.push_str("\n\n");
     moderator_template
 }
 
 impl Moderator {
     pub fn new(name: &str, moderator_prompt_template: &str) -> Self {
-        let ollama_client = Ollama::new(
-            env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")),
-            env::var("OLLAMA_PORT")
-                .unwrap_or(String::from("11434"))
-                .parse()
-                .unwrap(),
-        );
+        let ollama_client = Ollama::builder()
+            .host(env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")))
+            .port(
+                env::var("OLLAMA_PORT")
+                    .unwrap_or(String::from("11434"))
+                    .parse()
+                    .unwrap(),
+            )
+            .build();
         let model_name = env::var("LLM_MODEL").unwrap_or(String::from("mistral-nemo:12b"));
 
         let messages = vec![ChatMessage::system(assemble_moderator_prompt_template(

@@ -31,11 +31,7 @@ pub struct BotController {
 }
 
 impl BotController {
-    pub fn new(
-        name: &str,
-        bot_username: &str,
-        task_template: &str,
-    ) -> Self {
+    pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
         let moderator = Moderator::new(name, task_template);
 
         Self {
@@ -382,7 +378,7 @@ fn extract_time_seconds(str: String) -> Option<u64> {
             let days: u64 = time_str[..time_str.len() - 1].parse().unwrap();
             Some(days * 24 * 60 * 60)
         }
-        _ => None
+        _ => None,
     }
 }
 
@@ -475,7 +471,10 @@ pub async fn mute_user_action(
         event.api.send_message(message_re).await?;
         return Ok(Action::Done);
     }
-    Ok(Action::ReplyText(format!("@{} You are muted now!", username_be_muted)))
+    Ok(Action::ReplyText(format!(
+        "@{} You are muted now!",
+        username_be_muted
+    )))
 }
 
 pub async fn unmute_user_action(
