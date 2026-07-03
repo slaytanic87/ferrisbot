@@ -37,8 +37,7 @@ fn assemble_tool_prompt_template(tool_prompt_template: &str) -> String {
     });
 
     let mut template: String = tool_prompt_template
-        .trim()
-        .replace("{NO_ACTION}", NO_ACTION);
+        .trim().to_string();
     template.push_str("\n\n");
     template.push_str(format!("Input message:\n\n{}", moderator_message_json_schema).as_str());
     template
