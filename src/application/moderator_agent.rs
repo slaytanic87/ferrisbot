@@ -71,8 +71,8 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         "properties": {
             "channel": { "type": "string", "description": "Name of the channel" },
             "user_role": { "type": "string", "description": "Role of the user in the chat" },
-            "user_id": { "type": "string", "description": "User identity as numbers" },
-            "chat_id": { "type": "string", "description": "Chat identity as numbers" },
+            "user_id": { "type": "string", "description": "User id who sent the message" },
+            "chat_id": { "type": "string", "description": "Chat identity where the message was sent" },
             "user": { "type": "string", "description": "Name of the User" },
             "message": { "type": "string", "description": "User message" }
         },
@@ -82,10 +82,10 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     let output_message_json_schema = serde_json::json!({
         "type": "object",
         "properties": {
-            "moderator": { "type": "string", "description": "Name of the moderator" },
+            "moderator": { "type": "string", "description": "Your name as the moderator" },
             "message": { "type": "string", "description": format!("Moderator message or {} if moderator should not respond", NO_ACTION) },
-            "user_id": { "type": "string", "description": "User identity as numbers" },
-            "chat_id": { "type": "string", "description": "Chat identity as numbers" }
+            "user_id": { "type": "string", "description": "User id who sent the message" },
+            "chat_id": { "type": "string", "description": "Chat identity where the message was sent" }
         },
         "required": ["moderator", "message", "user_id", "chat_id"]
     });
