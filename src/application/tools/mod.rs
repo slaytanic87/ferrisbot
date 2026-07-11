@@ -5,9 +5,11 @@ pub use member_ban::KickUserWithoutBan;
 pub use member_ban::KICK_USER_WITHOUTBAN;
 pub use member_ban::KICK_USER_WITHOUTBAN_DESCRIPTION;
 pub use member_mute::MuteMember;
+pub use member_mute::MuteMemberParams;
 pub use member_mute::MUTE_MEMBER;
 pub use member_mute::MUTE_MEMBER_DESCRIPTION;
 pub use websearch::WebSearch;
+pub use websearch::WebSearchParams;
 pub use websearch::WEB_SEARCH;
 pub use websearch::WEB_SEARCH_DESCRIPTION;
 
