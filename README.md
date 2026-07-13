@@ -32,7 +32,8 @@ mistral-nemo 12B
 ollama run mistral-nemo:12b
 ```
 
-**Remember: The quality of the bot depends on the model of your choice!**
+**Remember: The models must have _tool_ support and how it works depends on the model of your choice!**
+**Tested models:** qwen3.5:9b-mlx, mistral-nemo:12b, llama3.2:latest
 
 ## Setup Telegram bot token & parameters
 

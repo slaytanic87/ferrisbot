@@ -12,7 +12,7 @@ pub const WEB_SEARCH_DESCRIPTION: &str = "Searches the web using DuckDuckGo's HT
 
 #[derive(Deserialize, JsonSchema)]
 pub struct WebSearchParams {
-    #[schemars(description = "The search query to send to DuckDuckGo.")]
+    #[schemars(description = "The search query or words to send to DuckDuckGo.")]
     pub query: String,
 }
 

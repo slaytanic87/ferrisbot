@@ -1,9 +1,6 @@
-mod assistant_agent;
 mod member;
 mod moderator_agent;
 pub mod tools;
-pub use assistant_agent::Assistant;
-pub use assistant_agent::ASSISTANT_PROMPT_FILE;
 pub use member::UserManagement;
 pub use moderator_agent::Moderator;
 pub use moderator_agent::MODERATOR_PROMPT_FILE;

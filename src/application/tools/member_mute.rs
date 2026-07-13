@@ -20,7 +20,7 @@ pub struct MuteMemberParams {
     #[schemars(description = "The chat ID to mute the user from.")]
     pub chat_id: i64,
 
-    #[schemars(description = "Mute time in seconds.")]
+    #[schemars(description = "Mute until this date as unix timestamp in seconds.")]
     pub mute_time: i64,
 }
 

@@ -3,11 +3,15 @@ use ollama_rs::{
     generation::{
         chat::{request::ChatMessageRequest, ChatMessage},
         parameters::FormatType,
+        tools::{ToolFunctionInfo, ToolInfo, ToolType},
     },
     Ollama,
 };
+use schemars::Schema;
 use std::env;
 use std::{collections::VecDeque, vec};
+
+use crate::application::tools::execute_tool;
 
 const MAX_HISTORY_BUFFER_SIZE: usize = 60;
 pub const NO_ACTION: &str = "NO_ACTION";
@@ -63,6 +67,7 @@ pub struct Moderator {
     model_name: String,
     ollama: Ollama,
     history_buffer: HistoryBuffer,
+    tool_infos: Vec<ToolInfo>,
 }
 
 fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
@@ -109,6 +114,15 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         .as_str(),
     );
     moderator_template.push_str("\n\n");
+    moderator_template.push_str(
+        r#"## You have following Tools
+           1. mute_member_in_chat (Admin only)
+               - If an admin is advising to mute a user use this tool to mute the user from the chat. Extract the chat id and user id from the input message and use it as parameters to mute the user.
+           2. kick_user_from_chat (Admin only)
+               - If an admin is advising to kick a user use this tool to kick the user from the chat. Extract the chat id and user id from the input message and use it as parameters to kick the user.
+           3. web_search (Available to all Members)
+               - If a user is asking a you a question by mention your name and you don't know the answer, use this tool to search the web for the answer. Extract the message from the input message and use it as a parameter to search the web. Use the result of the web search to answer the user's question.
+        "#);
     moderator_template
 }
 
@@ -135,13 +149,45 @@ impl Moderator {
             model_name,
             ollama: ollama_client,
             history_buffer,
+            tool_infos: Vec::default(),
         }
+    }
+
+    /**
+     * example usage:
+     *  let mut assistant = Assistant::new(tool_prompt_template);
+     *  assistant.add_tool(
+     *     WEB_SEARCH.to_string(),
+     *     WEB_SEARCH_DESCRIPTION.to_string(),
+     *      schema_for!(tools::WebSearchParams),
+     *  );
+     *  assistant.add_tool(
+     *     KICK_USER_WITHOUTBAN.to_string(),
+     *     KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
+     *      schema_for!(tools::KickUserParams),
+     *  );
+     *  assistant.add_tool(
+     *     MUTE_MEMBER.to_string(),
+     *     MUTE_MEMBER_DESCRIPTION.to_string(),
+     *      schema_for!(tools::MuteMemberParams),
+     *  );
+     */
+    pub fn add_tool(&mut self, name: String, description: String, parameters: Schema) {
+        let tool_info = ToolInfo {
+            tool_type: ToolType::Function,
+            function: ToolFunctionInfo {
+                name,
+                description,
+                parameters,
+            },
+        };
+        self.tool_infos.push(tool_info);
     }
 
     pub async fn chat_forum(
         &mut self,
         input_json: &str,
-    ) -> std::result::Result<String, anyhow::Error> {
+    ) -> std::result::Result<(String, bool), anyhow::Error> {
         let user_message = ChatMessage::user(input_json.to_string());
         let mut history = self.history_buffer.get_history();
         debug!("History before chat: {:#?}", history);
@@ -150,13 +196,37 @@ impl Moderator {
             .send_chat_messages_with_history(
                 &mut history,
                 ChatMessageRequest::new(self.model_name.to_owned(), vec![user_message])
-                    .think(false)
-                    .format(FormatType::Json),
+                    .think(true)
+                    .format(FormatType::Json)
+                    .tools(self.tool_infos.clone()),
             )
             .await?;
         debug!("History: {:#?}", history);
+        if !response.message.tool_calls.is_empty() {
+            let mut final_response_str: String = String::new();
+            for call in &response.message.tool_calls {
+                let args = &call.function.arguments;
+                let name: String = call.function.name.clone();
+                let tool_response_rs = execute_tool(name.as_str(), args.clone()).await;
+                if let Ok(tool_rs) = tool_response_rs {
+                    history.push(response.message.clone());
+                    history.push(ChatMessage::tool(tool_rs));
+                    let final_response = self
+                        .ollama
+                        .send_chat_messages(
+                            ChatMessageRequest::new(self.model_name.to_owned(), history.clone())
+                                .think(false),
+                        )
+                        .await?;
+                    final_response_str
+                        .push_str(format!("{}/n", &final_response.message.content).as_str());
+                }
+            }
+            debug!("Response from tool - History: {:#?}", history);
+            return Ok((final_response_str, true));
+        }
         self.history_buffer.set_message_adjust_buffer(history);
-        Ok(response.message.content)
+        Ok((response.message.content, false))
     }
 
     pub async fn summarize_chat(&self, topic: &str) -> std::result::Result<String, anyhow::Error> {
@@ -241,23 +311,23 @@ mod moderator_test {
             .chat_forum(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "56789", "user": "Kevin", "message": "ich frage mich wo Gerd ist?" }"#)
             .await;
 
-        if let Ok(res) = rs1 {
+        if let Ok((res, _)) = rs1 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok(res) = rs2 {
+        if let Ok((res, _)) = rs2 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok(res) = rs3 {
+        if let Ok((res, _)) = rs3 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok(res) = rs4 {
+        if let Ok((res, _)) = rs4 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok(res) = rs5 {
+        if let Ok((res, _)) = rs5 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
@@ -288,7 +358,7 @@ mod moderator_test {
         })
         .unwrap();
         let rs = moderator.chat_forum(message1.as_str()).await;
-        if let Ok(res) = rs {
+        if let Ok((res, _)) = rs {
             debug!("{}", res);
         }
     }

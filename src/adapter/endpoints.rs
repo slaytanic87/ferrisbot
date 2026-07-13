@@ -1,5 +1,12 @@
 use crate::{
-    application::{self, ModeratorMessage, UserMessage},
+    application::{
+        self,
+        tools::{
+            self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
+            MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
+        },
+        ModeratorMessage, UserMessage,
+    },
     Moderator, UserManagement,
 };
 use log::debug;
@@ -25,8 +32,22 @@ pub struct BotController {
 
 impl BotController {
     pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
-        let moderator = Moderator::new(name, task_template);
-
+        let mut moderator = Moderator::new(name, task_template);
+        moderator.add_tool(
+            WEB_SEARCH.to_string(),
+            WEB_SEARCH_DESCRIPTION.to_string(),
+            schema_for!(tools::WebSearchParams),
+        );
+        moderator.add_tool(
+            KICK_USER_WITHOUTBAN.to_string(),
+            KICK_USER_WITHOUTBAN_DESCRIPTION.to_string(),
+            schema_for!(tools::KickUserParams),
+        );
+        moderator.add_tool(
+            MUTE_MEMBER.to_string(),
+            MUTE_MEMBER_DESCRIPTION.to_string(),
+            schema_for!(tools::MuteMemberParams),
+        );
         Self {
             moderator,
             user_management: UserManagement::new(),
@@ -260,11 +281,16 @@ pub async fn handle_chat_messages(
         .chat_forum(input_json_str.as_str())
         .await;
 
-    if let Ok(reply_message) = reply_rs {
-        let message_json: ModeratorMessage = serde_json::from_str(&reply_message)?;
-        if message_json.message.contains(application::NO_ACTION) {
-            return Ok(Action::Done);
-        }
+    if let Ok((reply_message, has_tool_result)) = reply_rs {
+        let message_str: String = if !has_tool_result {
+            let message_json: ModeratorMessage = serde_json::from_str(&reply_message)?;
+            if message_json.message.contains(application::NO_ACTION) {
+                return Ok(Action::Done);
+            }
+            message_json.message
+        } else {
+            reply_message
+        };
 
         event
             .api
@@ -276,13 +302,12 @@ pub async fn handle_chat_messages(
             .await?;
 
         if let Some(thread_id) = message_thread_id {
-            let message_re =
-                &SendMessageRequest::new(event.update.chat_id()?, message_json.message)
-                    .with_message_thread_id(thread_id);
+            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str)
+                .with_message_thread_id(thread_id);
             event.api.send_message(message_re).await?;
             return Ok(Action::Done);
         }
-        return Ok(Action::ReplyText(message_json.message));
+        return Ok(Action::ReplyText(message_str));
     }
     Ok(Action::Done)
 }
@@ -538,4 +563,25 @@ pub async fn unmute_user_action(
     }
 
     Ok(Action::Done)
+}
+
+pub async fn killswitch_action(
+    event: Event,
+    state: State<BotController>,
+) -> Result<Action, anyhow::Error> {
+    let user_opt: Option<String> = event.update.from_user()?.clone().username;
+    let bot_controller = state.get().write().await;
+    if !bot_controller
+        .user_management
+        .is_administrator(user_opt.clone().unwrap().as_str())
+    {
+        log::info!(
+            "User {} is not an administrator. Ignoring killswitch command.",
+            user_opt.unwrap()
+        );
+        return Ok(Action::Done);
+    }
+
+    log::info!("Killswitch command received. Killing the server...");
+    std::process::exit(0);
 }

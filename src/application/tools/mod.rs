@@ -1,6 +1,7 @@
 mod member_ban;
 mod member_mute;
 mod websearch;
+pub use member_ban::KickUserParams;
 pub use member_ban::KickUserWithoutBan;
 pub use member_ban::KICK_USER_WITHOUTBAN;
 pub use member_ban::KICK_USER_WITHOUTBAN_DESCRIPTION;
