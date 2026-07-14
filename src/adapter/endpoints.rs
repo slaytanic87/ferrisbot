@@ -218,6 +218,7 @@ pub async fn handle_chat_messages(
     let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
     let chat_id: i64 = event.update.chat_id()?;
+    let date_as_unix_time: i64 = event.update.get_message()?.clone().date;
 
     // Only text message is supported
     if message.is_none() {
@@ -274,6 +275,7 @@ pub async fn handle_chat_messages(
         chat_id: chat_id.to_string(),
         user: first_name,
         message: text_message.to_string(),
+        date_unix_time: date_as_unix_time.to_string(),
     };
     let input_json_str = serde_json::to_string(&input)?;
     let reply_rs = bot_controller

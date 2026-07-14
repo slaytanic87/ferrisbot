@@ -88,7 +88,7 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         "type": "object",
         "properties": {
             "moderator": { "type": "string", "description": "Your name as the moderator" },
-            "message": { "type": "string", "description": format!("Moderator message or {} if moderator should not respond", NO_ACTION) },
+            "message": { "type": "string", "description": format!("Moderator message or {} if moderator should not responds", NO_ACTION) },
             "user_id": { "type": "string", "description": "User id who sent the message" },
             "chat_id": { "type": "string", "description": "Chat identity where the message was sent" }
         },
@@ -100,7 +100,7 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     moderator_template.push_str("Always response with valiad JSON conforming schemas below. Do not include any text outside the JSON objects.\n\n");
     moderator_template.push_str(
         format!(
-            "### Request message conforming this valid schema \n\n{}",
+            "### Request message use this conforming valid schema \n\n{}",
             input_message_json_schema
         )
         .as_str(),
@@ -108,20 +108,17 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     moderator_template.push_str("\n\n");
     moderator_template.push_str(
         format!(
-            "### Response message conforming this valid schema \n\n{}",
+            "### Response message use this conforming valid schema \n\n{}",
             output_message_json_schema
         )
         .as_str(),
     );
     moderator_template.push_str("\n\n");
     moderator_template.push_str(
-        r#"## You have following Tools
-           1. mute_member_in_chat (Admin only)
-               - If an admin is advising to mute a user use this tool to mute the user from the chat. Extract the chat id and user id from the input message and use it as parameters to mute the user.
-           2. kick_user_from_chat (Admin only)
-               - If an admin is advising to kick a user use this tool to kick the user from the chat. Extract the chat id and user id from the input message and use it as parameters to kick the user.
-           3. web_search (Available to all Members)
-               - If a user is asking a you a question by mention your name and you don't know the answer, use this tool to search the web for the answer. Extract the message from the input message and use it as a parameter to search the web. Use the result of the web search to answer the user's question.
+        r#"## You have access to the following Tools:
+           1. mute_member_in_chat (Admin only): If an admin is advising to mute a user use this tool to mute the user from the chat. Extract the chat id, user id from the property fields and mute time from the message and use it as parameters to mute the user.
+           2. kick_user_from_chat (Admin only): If an admin is advising to kick a user use this tool to kick the user from the chat. Extract the chat id and user id from the input message and use it as parameters to kick the user.
+           3. web_search (Available to all Members): If a user or admin is asking you a question by mentioning your name for looking latest informations, use this tool to search the web for the answer. Extract the query from the message as a parameter to search the web. Use the result of the web search to answer the user's question.
         "#);
     moderator_template
 }
@@ -271,6 +268,8 @@ impl Moderator {
 #[cfg(test)]
 mod moderator_test {
 
+    use std::time::Instant;
+
     use mobot::init_logger;
 
     use crate::application::moderator_agent::{Moderator, MODERATOR_PROMPT_FILE};
@@ -345,6 +344,7 @@ mod moderator_test {
             user_id: "123".to_string(),
             chat_id: "56789".to_string(),
             message: "Was will Steffen von uns?".to_string(),
+            date_unix_time: Instant::now().elapsed().as_secs().to_string(),
         })
         .unwrap();
         let _ = moderator.chat_forum(message1.as_str()).await;
@@ -355,6 +355,7 @@ mod moderator_test {
             user_id: "1".to_string(),
             chat_id: "56339".to_string(),
             message: "Hey Kevin, lasst es doch sein darüber zu lästern".to_string(),
+            date_unix_time: Instant::now().elapsed().as_secs().to_string(),
         })
         .unwrap();
         let rs = moderator.chat_forum(message1.as_str()).await;

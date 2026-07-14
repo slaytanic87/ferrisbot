@@ -11,7 +11,7 @@ json2markdown = "0.2.1"
 log = "0.4.33"
 mobot = { git = "https://github.com/slaytanic87/mobot", tag = "0.4.2" }
 ollama-rs = { version = "0.3.5", features = ["macros", "tool-implementations",  "stream", "headers"] }
-regex = "1.12.4"
+regex = "1.13.0"
 reqwest = "0.13.4"
 schemars = "1.2.1"
 scraper = "0.27.0"
