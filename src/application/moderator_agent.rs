@@ -187,7 +187,6 @@ impl Moderator {
     ) -> std::result::Result<(String, bool), anyhow::Error> {
         let user_message = ChatMessage::user(input_json.to_string());
         let mut history = self.history_buffer.get_history();
-        debug!("History before chat: {:#?}", history);
         let response = self
             .ollama
             .send_chat_messages_with_history(
@@ -220,6 +219,7 @@ impl Moderator {
                 }
             }
             debug!("Response from tool - History: {:#?}", history);
+            self.history_buffer.set_message_adjust_buffer(history);
             return Ok((final_response_str, true));
         }
         self.history_buffer.set_message_adjust_buffer(history);
