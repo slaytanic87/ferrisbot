@@ -283,14 +283,21 @@ pub async fn handle_chat_messages(
         .chat_forum(input_json_str.as_str())
         .await;
 
-    if let Ok((reply_message, has_tool_result)) = reply_rs {
-        let message_str: String = if !has_tool_result {
-            let message_json: ModeratorMessage = serde_json::from_str(&reply_message)?;
-            if message_json.message.contains(application::NO_ACTION) {
+    if let Ok(reply_message) = reply_rs {
+        let json_rs = serde_json::from_str::<ModeratorMessage>(&reply_message);
+        let message_str: String = if let Ok(moderator_message) = json_rs {
+            if moderator_message.message.contains(application::NO_ACTION) {
                 return Ok(Action::Done);
             }
-            message_json.message
+            moderator_message.message
         } else {
+            debug!(
+                "error parsing moderator message: {:?}",
+                json_rs.err().unwrap()
+            );
+            if reply_message.contains(application::NO_ACTION) {
+                return Ok(Action::Done);
+            }
             reply_message
         };
 

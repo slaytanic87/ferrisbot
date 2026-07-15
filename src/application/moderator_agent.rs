@@ -184,7 +184,7 @@ impl Moderator {
     pub async fn chat_forum(
         &mut self,
         input_json: &str,
-    ) -> std::result::Result<(String, bool), anyhow::Error> {
+    ) -> std::result::Result<String, anyhow::Error> {
         let user_message = ChatMessage::user(input_json.to_string());
         let mut history = self.history_buffer.get_history();
         let response = self
@@ -220,10 +220,10 @@ impl Moderator {
             }
             debug!("Response from tool - History: {:#?}", history);
             self.history_buffer.set_message_adjust_buffer(history);
-            return Ok((final_response_str, true));
+            return Ok(final_response_str);
         }
         self.history_buffer.set_message_adjust_buffer(history);
-        Ok((response.message.content, false))
+        Ok(response.message.content)
     }
 
     pub async fn summarize_chat(&self, topic: &str) -> std::result::Result<String, anyhow::Error> {
@@ -310,23 +310,23 @@ mod moderator_test {
             .chat_forum(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "3", "chat_id": "56789", "user": "Kevin", "message": "ich frage mich wo Gerd ist?" }"#)
             .await;
 
-        if let Ok((res, _)) = rs1 {
+        if let Ok(res) = rs1 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok((res, _)) = rs2 {
+        if let Ok(res) = rs2 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok((res, _)) = rs3 {
+        if let Ok(res) = rs3 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok((res, _)) = rs4 {
+        if let Ok(res) = rs4 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
-        if let Ok((res, _)) = rs5 {
+        if let Ok(res) = rs5 {
             debug!("{}", res);
             assert_ne!(res, NO_ACTION);
         }
@@ -359,7 +359,7 @@ mod moderator_test {
         })
         .unwrap();
         let rs = moderator.chat_forum(message1.as_str()).await;
-        if let Ok((res, _)) = rs {
+        if let Ok(res) = rs {
             debug!("{}", res);
         }
     }
