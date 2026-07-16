@@ -215,11 +215,10 @@ impl Moderator {
                         )
                         .await?;
                     final_response_str
-                        .push_str(format!("{}/n", &final_response.message.content).as_str());
+                        .push_str(format!("{}", &final_response.message.content).as_str());
                 }
             }
             debug!("Response from tool - History: {:#?}", history);
-            self.history_buffer.set_message_adjust_buffer(history);
             return Ok(final_response_str);
         }
         self.history_buffer.set_message_adjust_buffer(history);
