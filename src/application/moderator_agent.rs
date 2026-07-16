@@ -116,9 +116,11 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
     moderator_template.push_str("\n\n");
     moderator_template.push_str(
         r#"## You have access to the following Tools:
-           1. mute_member_in_chat (Admin only): If an admin is advising to mute a user use this tool to mute the user from the chat. Extract the chat id, user id from the property fields and mute time from the message and use it as parameters to mute the user.
-           2. kick_user_from_chat (Admin only): If an admin is advising to kick a user use this tool to kick the user from the chat. Extract the chat id and user id from the input message and use it as parameters to kick the user.
-           3. web_search (Available to all Members): If a user or admin is asking you a question by mentioning your name for looking latest informations, use this tool to search the web for the answer. Extract the query from the message as a parameter to search the web. Use the result of the web search to answer the user's question.
+           1. mute_member_in_chat (Admin only): If an Admin is advising you to mute a User use this tool to mute the user from the chat. Extract the chat id, user id from the property fields and mute time from the message and use it as parameters to mute the user.
+           2. kick_user_from_chat (Admin only): If an Admin is advising you to kick a User use this tool to kick the user from the chat. Extract the chat id and user id from the input message and use it as parameters to kick the user.
+           3. web_search (Available to all Members): If a User or Admin is asking you a question by mentioning your name and requesting explicitly for informations, use this tool to search the web for the answer. Extract the query from the message as a parameter to search the web. Use the result of the web search to answer the user's question.
+           CRITICAL OPERATION RULES:
+             - Never execute any tool without the explicit request from a User or Admin. If you are not sure, ask to confirm or clarify their intention first.
         "#);
     moderator_template
 }
