@@ -96,6 +96,20 @@ impl UserManagement {
             })
     }
 
+    pub fn get_user_by_first_name(&self, firstname: &str) -> Option<(&String, &UserEntity)> {
+        self.bot_db
+            .bot_memory
+            .user_map
+            .iter()
+            .find_map(|(index, user)| {
+                if user.firstname.to_lowercase() == firstname.to_lowercase() {
+                    Some((index, user))
+                } else {
+                    None
+                }
+            })
+    }
+
     pub fn register_administrator(&mut self, username: String) {
         debug!("Registering administrator: {}", username);
         self.bot_db.bot_memory.administrators.push(username);
