@@ -70,7 +70,11 @@ pub struct Moderator {
     tool_infos: Vec<ToolInfo>,
 }
 
-fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> String {
+fn assemble_moderator_prompt_template(
+    name: &str,
+    bot_username: &str,
+    prompt_template: &str,
+) -> String {
     let input_message_json_schema = serde_json::json!({
         "type": "object",
         "properties": {
@@ -84,36 +88,20 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
         "required": ["channel", "user_role", "user_id", "chat_id", "user", "message"]
     });
 
-    let output_message_json_schema = serde_json::json!({
-        "type": "object",
-        "properties": {
-            "moderator": { "type": "string", "description": "Your name as the moderator" },
-            "message": { "type": "string", "description": format!("Moderator message or {} if moderator should not responds", NO_ACTION) },
-            "user_id": { "type": "string", "description": "User id who sent the message" },
-            "chat_id": { "type": "string", "description": "Chat identity where the message was sent" }
-        },
-        "required": ["moderator", "message", "user_id", "chat_id"]
-    });
-
-    let mut moderator_template: String = prompt_template.trim().replace("{name}", name);
-    moderator_template.push_str("\n\n## Conversation Schemas\n\n");
-    moderator_template.push_str("Always response with valiad JSON conforming schemas below. Do not include any text outside the JSON objects.\n\n");
+    let mut moderator_template: String = prompt_template
+        .trim()
+        .replace("{name}", name)
+        .replace("{username}", bot_username);
+    moderator_template.push_str("\n\n## Conversation Schema\n\n");
     moderator_template.push_str(
         format!(
-            "### Request message use this conforming valid schema \n\n{}",
+            "**Input message is always a valid JSON schema like this**: \n\n{}",
             input_message_json_schema
         )
         .as_str(),
     );
-    moderator_template.push_str("\n\n");
-    moderator_template.push_str(
-        format!(
-            "### Response message use this conforming valid schema \n\n{}",
-            output_message_json_schema
-        )
-        .as_str(),
-    );
-    moderator_template.push_str("\n\n");
+    moderator_template
+        .push_str("You should always respond in plain text. Don't respond in JSON format.\n\n");
     moderator_template.push_str(
         r#"## You have access to the following Tools:
            1. **mute_member_in_chat** (Admin only): If an Admin is advising you to mute a User use this tool to mute the user from the chat. Extract the chat id from the chat_id property field, extract the name of the user and mute time from the admin message and use it as parameters to mute the user.
@@ -127,7 +115,7 @@ fn assemble_moderator_prompt_template(name: &str, prompt_template: &str) -> Stri
 }
 
 impl Moderator {
-    pub fn new(name: &str, moderator_prompt_template: &str) -> Self {
+    pub fn new(name: &str, bot_username: &str, moderator_prompt_template: &str) -> Self {
         let ollama_client = Ollama::builder()
             .host(env::var("OLLAMA_HOST_ADDR").unwrap_or(String::from("http://localhost")))
             .port(
@@ -141,6 +129,7 @@ impl Moderator {
 
         let messages = vec![ChatMessage::system(assemble_moderator_prompt_template(
             name,
+            bot_username,
             moderator_prompt_template,
         ))];
         let history_buffer = HistoryBuffer::new(messages);
@@ -291,7 +280,8 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
+        let mut moderator =
+            Moderator::new("Kate", "Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
         init_logger();
         let rs1 = moderator
             .chat_forum(r#"{ "channel": "Play & Fun", "user_role": "Regular User", "user_id:" "1", "chat_id": "56789",  "user": "Sabine", "message": "Hallo Leute, gehts euch gut?" }"#)
@@ -336,7 +326,8 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_admin_support_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
+        let mut moderator =
+            Moderator::new("Kate", "Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
         init_logger();
         let channel_id = "Play & Fun";
         let mut message1 = serde_json::to_string(&UserMessage {
@@ -368,7 +359,8 @@ mod moderator_test {
 
     #[tokio::test]
     async fn should_test_moderator_summerize_chat_successfully() {
-        let mut moderator = Moderator::new("Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
+        let mut moderator =
+            Moderator::new("Kate", "Kate", &read_prompt_template(MODERATOR_PROMPT_FILE));
 
         init_logger();
 

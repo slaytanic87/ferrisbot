@@ -28,7 +28,9 @@ async fn main() {
             description: "Gib eine Zusammenfassung der letzten Chatverlauf".into(),
         },
     ];
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
+    let client = Client::new(
+        env::var("TELEGRAM_TOKEN").expect("TELEGRAM_TOKEN environment variable not set"),
+    );
     let controller = BotController::new(
         &bot_name,
         &bot_username,

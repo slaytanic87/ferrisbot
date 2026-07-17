@@ -784,6 +784,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "dotenvy",
+ "futures",
  "json2markdown",
  "log",
  "mobot",

@@ -1,3 +1,8 @@
+use std::{
+    future::Future,
+    sync::{Arc, OnceLock},
+};
+
 use crate::{
     application::{
         self,
@@ -9,18 +14,63 @@ use crate::{
     },
     Moderator, UserManagement,
 };
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use log::debug;
 use mobot::{
     api::{
         ChatAction, ChatPermissions, GetChatAdministratorsRequest, GetChatRequest,
         RestrictChatMemberRequest, SendChatActionRequest, SendMessageRequest,
     },
-    Action, BotState, Event, State,
+    Action, BotState, Client, Event, State, API,
 };
 use regex::Regex;
 use schemars::schema_for;
 use serde_json::Value;
+use tokio::sync::{mpsc, oneshot};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
+
+struct ProcessQueue {
+    sender: mpsc::Sender<BoxFuture<'static, ()>>,
+}
+
+impl ProcessQueue {
+    fn new(size: usize) -> ProcessQueue {
+        let (sender, mut receiver) = mpsc::channel(size);
+
+        tokio::spawn(async move {
+            loop {
+                match receiver.recv().await {
+                    Some(f) => f.await,
+                    None => {
+                        log::error!("Task queue is closed.")
+                    }
+                }
+            }
+        });
+
+        ProcessQueue { sender }
+    }
+
+    async fn enqueue<T: Send + 'static>(&self, f: impl Future<Output = T> + Send + 'static) -> T {
+        let (sender, receiver) = oneshot::channel::<T>();
+
+        let _ = self
+            .sender
+            .send(
+                async move {
+                    let v = f.await;
+                    let _ = sender.send(v);
+                }
+                .boxed(),
+            )
+            .await;
+
+        receiver.await.unwrap()
+    }
+}
+
+static TASK_QUEUE: OnceLock<Arc<ProcessQueue>> = OnceLock::new();
 
 #[derive(Clone, BotState, Default)]
 pub struct BotController {
@@ -32,7 +82,7 @@ pub struct BotController {
 
 impl BotController {
     pub fn new(name: &str, bot_username: &str, task_template: &str) -> Self {
-        let mut moderator = Moderator::new(name, task_template);
+        let mut moderator = Moderator::new(name, bot_username, task_template);
         moderator.add_tool(
             WEB_SEARCH.to_string(),
             WEB_SEARCH_DESCRIPTION.to_string(),
@@ -48,12 +98,32 @@ impl BotController {
             MUTE_MEMBER_DESCRIPTION.to_string(),
             schema_for!(tools::MuteMemberParams),
         );
+        let _ = TASK_QUEUE.set(Arc::new(ProcessQueue::new(2)));
         Self {
             moderator,
             user_management: UserManagement::new(),
             name: name.into(),
             bot_username: bot_username.into(),
         }
+    }
+}
+
+async fn send_message(
+    message_text: String,
+    channel_message_thread_id_opt: Option<i64>,
+    chat_id: i64,
+) {
+    let message_req = if let Some(message_thread_id) = channel_message_thread_id_opt {
+        &SendMessageRequest::new(chat_id, message_text).with_message_thread_id(message_thread_id)
+    } else {
+        &SendMessageRequest::new(chat_id, message_text)
+    };
+    let api_key =
+        std::env::var("TELEGRAM_TOKEN").expect("TELEGRAM_TOKEN environment variable not set");
+    let api = API::new(Client::new(api_key));
+    let status = api.send_message(message_req).await;
+    if status.is_err() {
+        log::error!("Failed to send message: {:?}", status.err());
     }
 }
 
@@ -284,39 +354,12 @@ pub async fn handle_chat_messages(
         .await;
 
     if let Ok(reply_message) = reply_rs {
-        let json_rs = serde_json::from_str::<ModeratorMessage>(&reply_message);
-        let message_str: String = if let Ok(moderator_message) = json_rs {
-            if moderator_message.message.contains(application::NO_ACTION) {
-                return Ok(Action::Done);
-            }
-            moderator_message.message
-        } else {
-            debug!(
-                "error parsing moderator message: {:?}",
-                json_rs.err().unwrap()
-            );
-            if reply_message.contains(application::NO_ACTION) {
-                return Ok(Action::Done);
-            }
-            reply_message
-        };
-
-        event
-            .api
-            .send_chat_action(&SendChatActionRequest {
-                chat_id,
-                message_thread_id,
-                action: ChatAction::Typing,
-            })
-            .await?;
-
-        if let Some(thread_id) = message_thread_id {
-            let message_re = &SendMessageRequest::new(event.update.chat_id()?, message_str)
-                .with_message_thread_id(thread_id);
-            event.api.send_message(message_re).await?;
+        if reply_message.contains(application::NO_ACTION) {
             return Ok(Action::Done);
         }
-        return Ok(Action::ReplyText(message_str));
+
+        send_message(reply_message, message_thread_id, event.update.chat_id()?).await;
+        return Ok(Action::Done);
     }
     Ok(Action::Done)
 }
