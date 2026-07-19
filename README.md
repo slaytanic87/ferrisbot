@@ -50,9 +50,9 @@ export TELEGRAM_TOKEN = <MY_TELEGRAM_BOT_TOKEN>
 export OLLAMA_HOST_ADDR = "http:localhost"
 export OLLAMA_PORT = 11434
 export LLM_MODEL = "llama3.2:latest"
-export BOT_NAME = "<Name of the bot>"
-export BOT_USERNAME = "<Telegram username of the bot>"
-export FILE_DB_PATH = "<Path to store bot memory state file>"
+export BOT_NAME = "<Name of the bot, defaults to Ferrisbot if not set>"
+export BOT_USERNAME = "<Telegram username of the bot, defaults to Ferrisbot if not set>"
+export FILE_DB_PATH = "<Path to store bot memory state file, defaults to ./ if not defined>"
 ```
 
 ## Define Bot Task
