@@ -6,6 +6,12 @@
 
 Ferrisbot is a Rust based moderator chat bot, designed to used with the Telegram messenger.
 
+## Create and register a new telegram bot
+
+Follow this link to create your own telegram bot and get a unique token for it.
+
+[BotFather](https://core.telegram.org/bots/features#botfather)
+
 ## Setup LLM
 
 ### Install Ollama
