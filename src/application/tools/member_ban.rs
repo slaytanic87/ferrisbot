@@ -1,7 +1,10 @@
 use std::env;
 
 use log::debug;
-use mobot::{api::UnbanChatMemberRequest, Client};
+use mobot::{
+    api::{BanChatMemberRequest, UnbanChatMemberRequest},
+    Client,
+};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
@@ -59,16 +62,12 @@ impl KickUserWithoutBan {
             return Ok("Could not ban user, because user has never contribute in the chat".into());
         };
 
-        /*
-         * According to telegram bot api using this method can also unban a user in a supergroup or channel.
-         * But by default, this method guarantees that after the call the user is not a member of the chat, but will be able to join it.
-         * So if the user is a member of the chat they will also be removed from the chat.
-         */
         let success_rs = self
             .telegram_api
-            .unban_chat_member(&UnbanChatMemberRequest::new(
+            .ban_chat_member(&BanChatMemberRequest::new(
                 parameters.chat_id.to_string(),
                 user_id_be_ban,
+                None,
                 Some(false),
             ))
             .await?;
