@@ -1,10 +1,15 @@
 mod member_ban;
+mod member_info;
 mod member_mute;
 mod websearch;
 pub use member_ban::KickUserParams;
 pub use member_ban::KickUserWithoutBan;
 pub use member_ban::KICK_USER_WITHOUTBAN;
 pub use member_ban::KICK_USER_WITHOUTBAN_DESCRIPTION;
+pub use member_info::GetMember;
+pub use member_info::MemberInfoParam;
+pub use member_info::MEMBER_INFO;
+pub use member_info::MEMBER_INFO_DESCRIPTION;
 pub use member_mute::MuteMember;
 pub use member_mute::MuteMemberParams;
 pub use member_mute::MUTE_MEMBER;
@@ -33,6 +38,10 @@ pub async fn execute_tool(
         MUTE_MEMBER => {
             let mute_member = MuteMember::new();
             mute_member.execute(parameters).await
+        }
+        MEMBER_INFO => {
+            let member_info = GetMember::new();
+            member_info.execute(parameters).await
         }
         _ => Err("Tool not found".into()),
     }

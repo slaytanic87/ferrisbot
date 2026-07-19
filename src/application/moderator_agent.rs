@@ -103,10 +103,11 @@ fn assemble_moderator_prompt_template(
     moderator_template
         .push_str("You should always respond in plain text. Don't respond in JSON format.\n\n");
     moderator_template.push_str(
-        r#"## You have access to the following Tools:
-           1. **mute_member_in_chat** (Admin only): If an Admin is advising you to mute a User use this tool to mute the user from the chat. Extract the chat id from the chat_id property field, extract the name of the user and mute time from the admin message and use it as parameters to mute the user.
-           2. **kick_user_from_chat** (Admin only): If an Admin is advising you to kick a User use this tool to kick the user from the chat. Extract the chat id from the chat_id property field, extract the name of the user from the admin message and use it as parameters to kick the user.
-           3. **web_search** (Available to all Members): If a User or Admin is asking you a question by mentioning your name and requesting explicitly for informations, use this tool to search the web for the answer. Extract the query from the message as a parameter to search the web. Use the result of the web search to answer the user's question.
+        r#"## You have access to the following Tools if an Admin or User is advising you:
+           1. **mute_member_in_chat** (Only Admin are allowed to advise): Use this tool to mute a User from the chat. Extract the chat id from the chat_id property field, extract the name of the user and mute time from the admin message.
+           2. **kick_user_from_chat** (Only Admin are allowed to advise): Use this tool to kick a User from the chat. Extract the chat id from the chat_id property field, extract the name of the user from the admin message.
+           3. **web_search** (All Members are allowed to advised): If a User or Admin is asking you a question by mentioning your name and requesting explicitly for informations, use this tool to search the web for the answer. Extract the query from the message as a parameter to search the web. Use the result of the web search to answer the user's question.
+           4. **get_member_info** (All Members are allowed to advised): Use this tool to get information about a user. Extract the chat id from the property field, extract the name of the name of the user from the message.
            CRITICAL OPERATION RULES:
              - Never execute any tool without the explicit request from a User or Admin. If you are not sure, ask to confirm or clarify their intention first.
              - Never write tool calls as plain text or guess arguments without clear intent.

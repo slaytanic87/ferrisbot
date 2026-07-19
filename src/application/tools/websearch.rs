@@ -86,7 +86,7 @@ impl WebSearch {
         params: Value,
     ) -> std::result::Result<String, Box<dyn Error + Sync + Send>> {
         let param = serde_json::from_value::<WebSearchParams>(params)?;
-        let result_html = self.search(&param.query).await?;
+        let result_html: String = self.search(&param.query).await?;
         Ok(result_html)
     }
 }

@@ -7,8 +7,9 @@ use crate::{
     application::{
         self,
         tools::{
-            self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MUTE_MEMBER,
-            MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
+            self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MEMBER_INFO,
+            MEMBER_INFO_DESCRIPTION, MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH,
+            WEB_SEARCH_DESCRIPTION,
         },
         ModeratorMessage, UserMessage,
     },
@@ -97,6 +98,11 @@ impl BotController {
             MUTE_MEMBER.to_string(),
             MUTE_MEMBER_DESCRIPTION.to_string(),
             schema_for!(tools::MuteMemberParams),
+        );
+        moderator.add_tool(
+            MEMBER_INFO.to_string(),
+            MEMBER_INFO_DESCRIPTION.to_string(),
+            schema_for!(tools::MemberInfoParam),
         );
         let _ = TASK_QUEUE.set(Arc::new(ProcessQueue::new(2)));
         Self {

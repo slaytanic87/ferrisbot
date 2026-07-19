@@ -1,10 +1,7 @@
 use std::env;
 
 use log::debug;
-use mobot::{
-    api::{BanChatMemberRequest, UnbanChatMemberRequest},
-    Client,
-};
+use mobot::{api::BanChatMemberRequest, Client};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
