@@ -76,7 +76,7 @@ The name of your bot which has been defined as the environment variable:
 This internal flag is important if you define a situation in the template where the bot should not response to a message:
 
 ```bash
- {NO_ACTION}
+ NO_ACTION
 ```
 
 ### External Dependencies
