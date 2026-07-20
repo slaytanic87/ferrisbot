@@ -1,6 +1,7 @@
 mod member_ban;
 mod member_info;
 mod member_mute;
+mod message_reaction;
 mod websearch;
 pub use member_ban::KickUserParams;
 pub use member_ban::KickUserWithoutBan;
@@ -14,6 +15,10 @@ pub use member_mute::MuteMember;
 pub use member_mute::MuteMemberParams;
 pub use member_mute::MUTE_MEMBER;
 pub use member_mute::MUTE_MEMBER_DESCRIPTION;
+pub use message_reaction::MessageReaction;
+pub use message_reaction::MessageReactionParam;
+pub use message_reaction::MESSAGE_REACTION;
+pub use message_reaction::MESSAGE_REACTION_DESCRIPTION;
 pub use websearch::WebSearch;
 pub use websearch::WebSearchParams;
 pub use websearch::WEB_SEARCH;
@@ -42,6 +47,10 @@ pub async fn execute_tool(
         MEMBER_INFO => {
             let member_info = GetMember::new();
             member_info.execute(parameters).await
+        }
+        MESSAGE_REACTION => {
+            let message_reaction = MessageReaction::new();
+            message_reaction.execute(parameters).await
         }
         _ => Err("Tool not found".into()),
     }

@@ -111,6 +111,15 @@ fn assemble_moderator_prompt_template(
            CRITICAL OPERATION RULES:
              - Never execute any tool without the explicit request from a User or Admin. If you are not sure, ask to confirm or clarify their intention first.
              - Never write tool calls as plain text or guess arguments without clear intent.
+
+           ## You have access to the following tools which you can be execute in parallel along with other tools.
+           1. **message_reaction**: React on every incoming message of an user with an emoji depends on the context of message.
+              If the message violate one of the group rules and you don't like it use these emojies (👎,😱,🤬,🤮,🥴,🤨,😐,😨,🙉,😡,🤯).
+              If you like or agreed on a message use these emojies (👍,🥰,😘,👏,👌,⚡,🤗,😎,🤩,🎉,❤,🔥,🕊,😍,❤‍🔥,💯).
+              For the other context choose one these emojies here which does fit (😁,🤯,🤩,💩, 🙏, 🤡, 🥱, 🥴, 🐳,🌚,🌭,🤣, 🍌, 🏆, 💔,🍓,🍾,💋,😈,😴,😭,🤓,👻,👨‍💻,👀,🎃,😇,😨,🤝,🤗,🫡,🎅,🎄, 💅,🤪,🗿,🆒
+              ,🦄,😘,💊,🙊,👾,🤷‍♂,🤷,🤷‍♀). Pass your choosen emoji in the emoji parameter (don't choose other emojies which is not already mentioned). Extract the chat id and message id from the property fields.
+            OPERATION RULES:
+             - Never write tool calls as plain text or guess arguments without clear intent.
         "#);
     moderator_template.trim().to_string()
 }
@@ -193,7 +202,6 @@ impl Moderator {
         debug!("History: {:#?}", history);
         if !response.message.tool_calls.is_empty() {
             let mut final_response_str: String = String::new();
-            final_response_str.push_str(format!("{}\n", response.message.content).as_str());
             history.push(response.message.clone());
 
             for call in &response.message.tool_calls {
@@ -210,7 +218,7 @@ impl Moderator {
                         )
                         .await?;
                     final_response_str
-                        .push_str(format!("{}", &final_response.message.content).as_str());
+                        .push_str(format!("{}\n", &final_response.message.content).as_str());
                 }
             }
             debug!("Response from tool - History: {:#?}", history);
@@ -340,6 +348,7 @@ mod moderator_test {
             user_id: "123".to_string(),
             chat_id: "56789".to_string(),
             message: "Was will Steffen von uns?".to_string(),
+            message_id: 123,
             date_unix_time: Instant::now().elapsed().as_secs().to_string(),
         })
         .unwrap();
@@ -351,6 +360,7 @@ mod moderator_test {
             user_id: "1".to_string(),
             chat_id: "56339".to_string(),
             message: "Hey Kevin, lasst es doch sein darüber zu lästern".to_string(),
+            message_id: 123,
             date_unix_time: Instant::now().elapsed().as_secs().to_string(),
         })
         .unwrap();

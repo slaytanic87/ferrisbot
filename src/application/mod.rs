@@ -16,6 +16,7 @@ pub struct UserMessage {
     pub chat_id: String,
     pub user: String,
     pub message: String,
+    pub message_id: i64,
     pub date_unix_time: String,
 }
 

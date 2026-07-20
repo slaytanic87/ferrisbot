@@ -8,8 +8,8 @@ use crate::{
         self,
         tools::{
             self, KICK_USER_WITHOUTBAN, KICK_USER_WITHOUTBAN_DESCRIPTION, MEMBER_INFO,
-            MEMBER_INFO_DESCRIPTION, MUTE_MEMBER, MUTE_MEMBER_DESCRIPTION, WEB_SEARCH,
-            WEB_SEARCH_DESCRIPTION,
+            MEMBER_INFO_DESCRIPTION, MESSAGE_REACTION, MESSAGE_REACTION_DESCRIPTION, MUTE_MEMBER,
+            MUTE_MEMBER_DESCRIPTION, WEB_SEARCH, WEB_SEARCH_DESCRIPTION,
         },
         ModeratorMessage, UserMessage,
     },
@@ -103,6 +103,11 @@ impl BotController {
             MEMBER_INFO.to_string(),
             MEMBER_INFO_DESCRIPTION.to_string(),
             schema_for!(tools::MemberInfoParam),
+        );
+        moderator.add_tool(
+            MESSAGE_REACTION.to_string(),
+            MESSAGE_REACTION_DESCRIPTION.to_string(),
+            schema_for!(tools::MessageReactionParam),
         );
         let _ = TASK_QUEUE.set(Arc::new(ProcessQueue::new(2)));
         Self {
@@ -285,17 +290,17 @@ pub async fn handle_chat_messages(
     event: Event,
     state: State<BotController>,
 ) -> Result<Action, anyhow::Error> {
-    let user_id: i64 = event.update.from_user()?.clone().id;
+    let user_id: i64 = event.update.from_user()?.id;
     let username_opt: Option<String> = event.update.from_user()?.clone().username;
     let last_activity_unix_time: u64 = event.update.get_message()?.clone().date as u64;
     let reply_to_message_opt = event.update.get_message()?.clone().reply_to_message;
     let first_name: String = event.update.from_user()?.clone().first_name;
     let message: Option<String> = event.update.get_message()?.clone().text;
-    let message_thread_id: Option<i64> = event.update.get_message()?.clone().message_thread_id;
+    let message_thread_id: Option<i64> = event.update.get_message()?.message_thread_id;
     let mut bot_controller: RwLockWriteGuard<'_, BotController> = state.get().write().await;
     let chat_id: i64 = event.update.chat_id()?;
-    let date_as_unix_time: i64 = event.update.get_message()?.clone().date;
-
+    let date_as_unix_time: i64 = event.update.get_message()?.date;
+    let message_id: i64 = event.update.get_message()?.message_id;
     // Only text message is supported
     if message.is_none() {
         return Ok(Action::Done);
@@ -344,16 +349,17 @@ pub async fn handle_chat_messages(
         format!("@{}", bot_controller.bot_username).as_str(),
         &bot_controller.name,
     );
-    let input = UserMessage {
+    let incoming_message = UserMessage {
         channel: topic.to_string(),
         user_role: role.to_string(),
         user_id: user_id.to_string(),
         chat_id: chat_id.to_string(),
         user: first_name,
         message: text_message.to_string(),
+        message_id: message_id,
         date_unix_time: date_as_unix_time.to_string(),
     };
-    let input_json_str = serde_json::to_string(&input)?;
+    let input_json_str = serde_json::to_string(&incoming_message)?;
     let reply_rs = bot_controller
         .moderator
         .chat_forum(input_json_str.as_str())
