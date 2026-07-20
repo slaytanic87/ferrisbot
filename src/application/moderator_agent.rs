@@ -193,12 +193,14 @@ impl Moderator {
         debug!("History: {:#?}", history);
         if !response.message.tool_calls.is_empty() {
             let mut final_response_str: String = String::new();
+            final_response_str.push_str(format!("{}\n", response.message.content).as_str());
+            history.push(response.message.clone());
+
             for call in &response.message.tool_calls {
                 let args = &call.function.arguments;
                 let name: String = call.function.name.clone();
                 let tool_response_rs = execute_tool(name.as_str(), args.clone()).await;
                 if let Ok(tool_rs) = tool_response_rs {
-                    history.push(response.message.clone());
                     history.push(ChatMessage::tool(tool_rs));
                     let final_response = self
                         .ollama
