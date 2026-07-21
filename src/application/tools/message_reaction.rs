@@ -1,6 +1,6 @@
 use std::env;
 
-use log::info;
+use log::debug;
 use mobot::{
     api::{MessageReactionRequest, ReactionType},
     Client,
@@ -45,17 +45,17 @@ impl MessageReaction {
             .set_message_reaction(&MessageReactionRequest::new(
                 parameters.chat_id.parse::<i64>().unwrap(),
                 parameters.message_id,
-                Some(ReactionType::new(
+                Some(vec![ReactionType::new(
                     "emoji".to_string(),
                     Some(parameters.emoji.clone()),
                     None,
-                )),
+                )]),
                 None,
             ))
             .await?;
 
         if reaction_result {
-            info!(
+            debug!(
                 "Reaction done for message id {} with {}",
                 parameters.message_id, parameters.emoji
             );

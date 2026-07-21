@@ -1737,8 +1737,8 @@ dependencies = [
 
 [[package]]
 name = "mobot"
-version = "0.4.3"
-source = "git+https://github.com/slaytanic87/mobot?tag=0.4.3#4ce7658235e4c2d3b44deea78e2764f32275953e"
+version = "0.4.4"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.4.4#98ed1dba06f33d10a0bd5a37702920984f0d339b"
 dependencies = [
  "anyhow",
  "argh",
@@ -1763,7 +1763,7 @@ dependencies = [
 [[package]]
 name = "mobot-derive"
 version = "0.1.3"
-source = "git+https://github.com/slaytanic87/mobot?tag=0.4.3#4ce7658235e4c2d3b44deea78e2764f32275953e"
+source = "git+https://github.com/slaytanic87/mobot?tag=0.4.4#98ed1dba06f33d10a0bd5a37702920984f0d339b"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -27,7 +27,7 @@ Download and install Ollama
 Llama3.2
 
 ```bash
-ollama run llama3.2:latest
+ollama run qwen3.5:9b
 ```
 
 or
@@ -39,7 +39,7 @@ ollama run mistral-nemo:12b
 ```
 
 **Remember: The models must have _tool_ support and how it works depends on the model of your choice!**
-**Tested models:** qwen3.5:9b-mlx, mistral-nemo:12b, llama3.2:latest
+**Tested models:** qwen3.5:9b-mlx, gemma4:e4b-mlx, mistral-nemo:12b, llama3.2:latest
 
 ## Setup Telegram bot token & parameters
 

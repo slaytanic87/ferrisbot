@@ -108,17 +108,13 @@ fn assemble_moderator_prompt_template(
            2. **kick_user_from_chat** (Only Admin are allowed to advise): Use this tool to kick a User from the chat. Extract the chat id from the chat_id property field, extract the name of the user from the admin message.
            3. **web_search** (All Members are allowed to advised): If a User or Admin is asking you a question by mentioning your name and requesting explicitly for informations, use this tool to search the web for the answer. Extract the query from the message as a parameter to search the web. Use the result of the web search to answer the user's question.
            4. **get_member_info** (All Members are allowed to advised): Use this tool to get information about a user. Extract the chat id from the property field, extract the name of the name of the user from the message.
+           5. **message_reaction** (No advises needed): Use this tool on every incoming message of an user with an emoji when the following situation occurs.
+               If the message violate one of the group rules and you don't like it use one of these emojies: 👎,😱,🤬,🤮,🥴,🤨,😐,😨,🙉,😡,🤯.
+               If you like or agreed on a message or an user is greeting use one of these emojies: 👍,🥰,😘,👏,👌,⚡,🤗,😎,🤩,🎉,❤,🔥,🕊,😍,❤‍🔥,💯.
+               For the other context choose one these emojies: 😁,🤯,🤩,💩, 🙏, 🤡, 🥱, 🥴, 🐳,🌚,🌭,🤣, 🍌, 🏆, 💔,🍓,🍾,💋,😈,😴,😭,🤓,👻,👨‍💻,👀,🎃,😇,😨,🤝,🤗,🫡,🎅,🎄, 💅,🤪,🗿,🆒
+              ,🦄,😘,💊,🙊,👾,🤷‍♂,🤷,🤷‍♀. Pass your choosen emoji in the emoji parameter (don't choose other emojies which is not already mentioned). Extract the chat id and message id from the property fields.
            CRITICAL OPERATION RULES:
-             - Never execute any tool without the explicit request from a User or Admin. If you are not sure, ask to confirm or clarify their intention first.
-             - Never write tool calls as plain text or guess arguments without clear intent.
-
-           ## You have access to the following tools which you can be execute in parallel along with other tools.
-           1. **message_reaction**: React on every incoming message of an user with an emoji depends on the context of message.
-              If the message violate one of the group rules and you don't like it use these emojies (👎,😱,🤬,🤮,🥴,🤨,😐,😨,🙉,😡,🤯).
-              If you like or agreed on a message use these emojies (👍,🥰,😘,👏,👌,⚡,🤗,😎,🤩,🎉,❤,🔥,🕊,😍,❤‍🔥,💯).
-              For the other context choose one these emojies here which does fit (😁,🤯,🤩,💩, 🙏, 🤡, 🥱, 🥴, 🐳,🌚,🌭,🤣, 🍌, 🏆, 💔,🍓,🍾,💋,😈,😴,😭,🤓,👻,👨‍💻,👀,🎃,😇,😨,🤝,🤗,🫡,🎅,🎄, 💅,🤪,🗿,🆒
-              ,🦄,😘,💊,🙊,👾,🤷‍♂,🤷,🤷‍♀). Pass your choosen emoji in the emoji parameter (don't choose other emojies which is not already mentioned). Extract the chat id and message id from the property fields.
-            OPERATION RULES:
+             - Never execute any tool without the explicit request from a User or Admin (except message_reaction tool). If you are not sure, ask to confirm or clarify their intention first.
              - Never write tool calls as plain text or guess arguments without clear intent.
         "#);
     moderator_template.trim().to_string()
@@ -219,6 +215,11 @@ impl Moderator {
                         .await?;
                     final_response_str
                         .push_str(format!("{}\n", &final_response.message.content).as_str());
+                } else {
+                    debug!(
+                        "Failed to execute tool cause: {}",
+                        tool_response_rs.err().unwrap()
+                    )
                 }
             }
             debug!("Response from tool - History: {:#?}", history);

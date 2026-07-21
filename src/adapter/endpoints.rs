@@ -366,7 +366,7 @@ pub async fn handle_chat_messages(
         .await;
 
     if let Ok(reply_message) = reply_rs {
-        if reply_message.contains(application::NO_ACTION) {
+        if reply_message.contains(application::NO_ACTION) || reply_message.trim().is_empty() {
             return Ok(Action::Done);
         }
 
